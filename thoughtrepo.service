@@ -1,0 +1,34 @@
+[Unit]
+Description=ThoughtRepo - Self-hosted note-taking PWA
+Documentation=https://github.com/your-user/thoughtrepo
+After=network.target
+
+[Service]
+Type=simple
+# Adjust these paths to match your installation
+WorkingDirectory=/opt/thoughtrepo
+ExecStart=/usr/bin/node dist/server/index.js
+Restart=on-failure
+RestartSec=5
+
+# Run as a dedicated user for security
+User=notes
+Group=notes
+
+# Environment
+Environment=NODE_ENV=production
+
+# Logging to stdout/stderr (captured by journald)
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=thoughtrepo
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/thoughtrepo/data /opt/thoughtrepo/plugins
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
