@@ -1,28 +1,36 @@
 {
-  "name": "thoughtrepo",
+  "name": "thoughtstack",
   "version": "1.0.0",
   "private": true,
   "type": "module",
   "workspaces": [
-    "src/server",
     "src/client"
   ],
   "scripts": {
-    "build": "npm run build --workspaces",
+    "dev": "npm run dev -w src/client",
+    "build": "npm run build -w src/client && npm run build:electron",
+    "build:electron": "tsc -p electron/tsconfig.json && echo '{\"type\":\"commonjs\"}' > dist/electron/package.json",
+    "electron:dev": "npm run build:electron && electron dist/electron/main.js",
+    "electron:build": "npm run build -w src/client && npm run build:electron && electron-builder --config electron-builder.yml",
+    "electron:preview": "npm run build -w src/client && npm run build:electron && electron dist/electron/main.js",
     "test": "vitest run",
     "test:unit": "vitest run --project unit",
     "test:property": "vitest run --project property",
     "test:integration": "vitest run --project integration"
   },
   "devDependencies": {
+    "@electron/rebuild": "^3.7.1",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^25.6.0",
     "@types/uuid": "^10.0.0",
+    "electron": "^33.3.1",
+    "electron-builder": "^26.0.12",
     "fast-check": "^4.7.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.5"
   },
   "dependencies": {
-    "better-sqlite3": "^11.10.0"
+    "better-sqlite3": "^11.10.0",
+    "gray-matter": "^4.0.3"
   }
 }

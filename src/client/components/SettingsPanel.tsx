@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { system, plugins as pluginsApi, type Plugin, type ExportData } from '../api/client';
+import React, { useState, useEffect, useCallback } from 'react';
+import { system, type AppSettings } from '../api/electron-client';
 
 // ── Theme helpers ──────────────────────────────────────────────────
 
@@ -19,7 +19,7 @@ export function applyTheme(preference: ThemePreference): void {
 }
 
 /**
- * Load the persisted theme preference from the server settings API.
+ * Load the persisted theme preference from the Electron settings API.
  * Falls back to 'system' if no preference is stored.
  */
 export async function loadThemePreference(): Promise<ThemePreference> {
@@ -30,13 +30,13 @@ export async function loadThemePreference(): Promise<ThemePreference> {
       return theme;
     }
   } catch {
-    // Server may not be available — fall back to system
+    // electronAPI may not be available — fall back to system
   }
   return 'system';
 }
 
 /**
- * Persist theme preference to the server settings API.
+ * Persist theme preference to the Electron settings API.
  */
 export async function saveThemePreference(preference: ThemePreference): Promise<void> {
   try {
@@ -55,16 +55,24 @@ interface SettingsPanelProps {
 
 export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
   const [theme, setTheme] = useState<ThemePreference>('system');
-  const [pluginList, setPluginList] = useState<Plugin[]>([]);
+  const [vaultPath, setVaultPath] = useState<string>('');
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load current settings when panel opens
   useEffect(() => {
     if (!open) return;
 
     loadThemePreference().then(setTheme);
-    pluginsApi.list().then(setPluginList).catch(() => setPluginList([]));
+
+    // Load vault path
+    (async () => {
+      try {
+        const path = await system.getVaultPath();
+        setVaultPath(path);
+      } catch {
+        setVaultPath('');
+      }
+    })();
   }, [open]);
 
   // ── Theme selection ──────────────────────────────────────────────
@@ -75,20 +83,23 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
     await saveThemePreference(newTheme);
   }, []);
 
-  // ── Plugin toggle ────────────────────────────────────────────────
+  // ── Vault path change ────────────────────────────────────────────
 
-  const handlePluginToggle = useCallback(async (pluginName: string, currentlyEnabled: boolean) => {
+  const handleChangeVault = useCallback(async () => {
     try {
-      if (currentlyEnabled) {
-        await pluginsApi.disable(pluginName);
+      setStatusMessage(null);
+      const path = await system.pickVaultFolder();
+      if (!path) return; // User cancelled
+
+      const result = await system.setVaultPath(path);
+      if (result.success) {
+        setVaultPath(path);
+        setStatusMessage({ text: 'Vault changed. Reload the app to apply.', type: 'success' });
       } else {
-        await pluginsApi.enable(pluginName);
+        setStatusMessage({ text: 'Failed to set vault path.', type: 'error' });
       }
-      // Refresh plugin list
-      const updated = await pluginsApi.list();
-      setPluginList(updated);
     } catch {
-      setStatusMessage({ text: `Failed to toggle plugin "${pluginName}"`, type: 'error' });
+      setStatusMessage({ text: 'Failed to change vault.', type: 'error' });
     }
   }, []);
 
@@ -97,15 +108,16 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
   const handleExport = useCallback(async () => {
     try {
       setStatusMessage(null);
-      const data = await system.exportData();
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `notes-export-${new Date().toISOString().slice(0, 10)}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-      setStatusMessage({ text: 'Export downloaded successfully', type: 'success' });
+      const result = await system.exportVault() as { success?: boolean; canceled?: boolean; error?: string; path?: string };
+      if (result.canceled) {
+        // User cancelled the save dialog — no message needed
+        return;
+      }
+      if (result.error) {
+        setStatusMessage({ text: `Export failed: ${result.error}`, type: 'error' });
+        return;
+      }
+      setStatusMessage({ text: 'Vault exported successfully', type: 'success' });
     } catch {
       setStatusMessage({ text: 'Export failed', type: 'error' });
     }
@@ -113,36 +125,36 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
 
   // ── Import ───────────────────────────────────────────────────────
 
-  const handleImportClick = useCallback(() => {
-    fileInputRef.current?.click();
-  }, []);
-
-  const handleImportFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const handleImportClick = useCallback(async () => {
     try {
       setStatusMessage(null);
-      const text = await file.text();
-      const data = JSON.parse(text) as ExportData;
-      const result = await system.importData(data);
-      if (result.errors && result.errors.length > 0) {
+      const result = await system.importData(null) as {
+        success?: boolean;
+        canceled?: boolean;
+        notebooks?: number;
+        notes?: number;
+        images?: number;
+        errors?: string[];
+      };
+      if (result.canceled) {
+        // User cancelled the open dialog — no message needed
+        return;
+      }
+      if (result.success) {
         setStatusMessage({
-          text: `Imported ${result.imported.total} items with ${result.errors.length} errors`,
-          type: 'error',
+          text: `Import completed: ${result.notebooks ?? 0} notebooks, ${result.notes ?? 0} notes, ${result.images ?? 0} images`,
+          type: 'success',
         });
       } else {
+        const errorCount = result.errors?.length ?? 0;
         setStatusMessage({
-          text: `Successfully imported ${result.imported.total} items`,
-          type: 'success',
+          text: `Import completed with ${errorCount} error(s)`,
+          type: 'error',
         });
       }
     } catch {
-      setStatusMessage({ text: 'Import failed — invalid file format', type: 'error' });
+      setStatusMessage({ text: 'Import failed', type: 'error' });
     }
-
-    // Reset file input
-    if (fileInputRef.current) fileInputRef.current.value = '';
   }, []);
 
   // ── Close on Escape ──────────────────────────────────────────────
@@ -169,6 +181,19 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
 
         {/* Body */}
         <div className="settings-body">
+          {/* Vault Section */}
+          <div className="settings-section">
+            <h3>Vault</h3>
+            <div className="settings-vault-info">
+              <span className="settings-vault-path" title={vaultPath}>
+                {vaultPath || 'No vault configured'}
+              </span>
+              <button className="settings-btn" onClick={handleChangeVault}>
+                Change Vault
+              </button>
+            </div>
+          </div>
+
           {/* Theme Section */}
           <div className="settings-section">
             <h3>Theme</h3>
@@ -185,32 +210,6 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
             </div>
           </div>
 
-          {/* Plugins Section */}
-          <div className="settings-section">
-            <h3>Plugins</h3>
-            {pluginList.length === 0 ? (
-              <p className="settings-empty">No plugins installed. Add plugins to the plugins/ directory.</p>
-            ) : (
-              <div className="settings-plugin-list">
-                {pluginList.map((plugin) => (
-                  <div key={plugin.name} className="settings-plugin-item">
-                    <div className="settings-plugin-info">
-                      <span className="settings-plugin-name">{plugin.name} <small>v{plugin.version}</small></span>
-                      {plugin.description && (
-                        <span className="settings-plugin-desc">{plugin.description}</span>
-                      )}
-                    </div>
-                    <button
-                      className={`settings-plugin-toggle ${plugin.enabled ? 'settings-plugin-toggle--enabled' : ''}`}
-                      onClick={() => handlePluginToggle(plugin.name, plugin.enabled)}
-                      aria-label={`${plugin.enabled ? 'Disable' : 'Enable'} ${plugin.name}`}
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
           {/* Export / Import Section */}
           <div className="settings-section">
             <h3>Data</h3>
@@ -221,13 +220,6 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
               <button className="settings-btn" onClick={handleImportClick}>
                 Import Data
               </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".json"
-                style={{ display: 'none' }}
-                onChange={handleImportFile}
-              />
             </div>
             {statusMessage && (
               <div className={`settings-status settings-status--${statusMessage.type}`}>

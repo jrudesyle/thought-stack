@@ -1,29 +1,23 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { tags as tagsApi, type Tag } from '../api/client';
+import { tags as tagsApi, type TagInfo } from '../api/electron-client';
 
 // ── Types ──────────────────────────────────────────────────────────
 
 interface TagInputProps {
-  noteId: string;
-  initialTags: Tag[];
+  tags: string[];
+  onTagsChange: (tags: string[]) => void;
 }
 
 // ── Component ──────────────────────────────────────────────────────
 
-export function TagInput({ noteId, initialTags }: TagInputProps) {
-  const [assignedTags, setAssignedTags] = useState<Tag[]>(initialTags);
+export function TagInput({ tags, onTagsChange }: TagInputProps) {
   const [inputValue, setInputValue] = useState('');
-  const [suggestions, setSuggestions] = useState<Tag[]>([]);
+  const [suggestions, setSuggestions] = useState<TagInfo[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Sync when initialTags change (note switch)
-  useEffect(() => {
-    setAssignedTags(initialTags);
-  }, [initialTags]);
 
   // ── Autocomplete ───────────────────────────────────────────────
 
@@ -36,15 +30,15 @@ export function TagInput({ noteId, initialTags }: TagInputProps) {
     try {
       const results = await tagsApi.autocomplete(query);
       // Filter out already-assigned tags
-      const assignedIds = new Set(assignedTags.map(t => t.id));
-      const filtered = results.filter(t => !assignedIds.has(t.id));
+      const assignedSet = new Set(tags.map(t => t.toLowerCase()));
+      const filtered = results.filter(t => !assignedSet.has(t.name.toLowerCase()));
       setSuggestions(filtered);
       setShowSuggestions(true);
       setSelectedIndex(-1);
     } catch (err) {
       console.error('Tag autocomplete failed:', err);
     }
-  }, [assignedTags]);
+  }, [tags]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -56,37 +50,28 @@ export function TagInput({ noteId, initialTags }: TagInputProps) {
 
   // ── Add tag ────────────────────────────────────────────────────
 
-  const addTag = async (tagName: string) => {
+  const addTag = (tagName: string) => {
     const name = tagName.trim();
     if (!name) return;
 
     // Check if already assigned
-    if (assignedTags.some(t => t.name.toLowerCase() === name.toLowerCase())) {
+    if (tags.some(t => t.toLowerCase() === name.toLowerCase())) {
       setInputValue('');
       setShowSuggestions(false);
       return;
     }
 
-    try {
-      const tag = await tagsApi.addToNote(noteId, name);
-      setAssignedTags(prev => [...prev, tag]);
-      setInputValue('');
-      setShowSuggestions(false);
-      setSuggestions([]);
-    } catch (err) {
-      console.error('Failed to add tag:', err);
-    }
+    // Update tags locally — parent (NoteEditor) includes tags in the save call
+    onTagsChange([...tags, name]);
+    setInputValue('');
+    setShowSuggestions(false);
+    setSuggestions([]);
   };
 
   // ── Remove tag ─────────────────────────────────────────────────
 
-  const removeTag = async (tagId: string) => {
-    try {
-      await tagsApi.removeFromNote(noteId, tagId);
-      setAssignedTags(prev => prev.filter(t => t.id !== tagId));
-    } catch (err) {
-      console.error('Failed to remove tag:', err);
-    }
+  const removeTag = (tagName: string) => {
+    onTagsChange(tags.filter(t => t !== tagName));
   };
 
   // ── Keyboard navigation ────────────────────────────────────────
@@ -107,10 +92,10 @@ export function TagInput({ noteId, initialTags }: TagInputProps) {
       setSelectedIndex(prev => Math.max(prev - 1, -1));
     } else if (e.key === 'Escape') {
       setShowSuggestions(false);
-    } else if (e.key === 'Backspace' && !inputValue && assignedTags.length > 0) {
+    } else if (e.key === 'Backspace' && !inputValue && tags.length > 0) {
       // Remove last tag on backspace in empty input
-      const lastTag = assignedTags[assignedTags.length - 1];
-      removeTag(lastTag.id);
+      const lastTag = tags[tags.length - 1];
+      removeTag(lastTag);
     }
   };
 
@@ -129,14 +114,14 @@ export function TagInput({ noteId, initialTags }: TagInputProps) {
   return (
     <div className="tag-input-container">
       <div className="tag-chips">
-        {assignedTags.map(tag => (
-          <span key={tag.id} className="tag-chip">
-            {tag.name}
+        {tags.map(tag => (
+          <span key={tag} className="tag-chip">
+            {tag}
             <button
               className="tag-chip-remove"
-              onClick={() => removeTag(tag.id)}
-              aria-label={`Remove tag ${tag.name}`}
-              title={`Remove ${tag.name}`}
+              onClick={() => removeTag(tag)}
+              aria-label={`Remove tag ${tag}`}
+              title={`Remove ${tag}`}
             >
               ×
             </button>
@@ -150,7 +135,7 @@ export function TagInput({ noteId, initialTags }: TagInputProps) {
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
           onFocus={() => { if (inputValue.trim()) fetchSuggestions(inputValue); }}
-          placeholder={assignedTags.length === 0 ? 'Add tags…' : ''}
+          placeholder={tags.length === 0 ? 'Add tags…' : ''}
           aria-label="Add tag"
         />
       </div>
@@ -159,15 +144,15 @@ export function TagInput({ noteId, initialTags }: TagInputProps) {
         <div className="tag-suggestions" ref={suggestionsRef} role="listbox">
           {suggestions.map((tag, idx) => (
             <button
-              key={tag.id}
+              key={tag.name}
               className={`tag-suggestion-item ${idx === selectedIndex ? 'tag-suggestion-item--selected' : ''}`}
               onClick={() => addTag(tag.name)}
               role="option"
               aria-selected={idx === selectedIndex}
             >
               {tag.name}
-              {tag.note_count !== undefined && (
-                <span className="tag-suggestion-count">({tag.note_count})</span>
+              {tag.noteCount !== undefined && (
+                <span className="tag-suggestion-count">({tag.noteCount})</span>
               )}
             </button>
           ))}

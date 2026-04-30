@@ -1,20 +1,20 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { notes as notesApi, type Note } from '../api/client';
+import { notes as notesApi, type NoteSummary } from '../api/electron-client';
 import { DRAG_TYPE_NOTE } from './Sidebar';
 
 // ── Types ──────────────────────────────────────────────────────────
 
 export type NoteListContext =
   | { type: 'all-notes' }
-  | { type: 'notebook'; notebookId: string }
-  | { type: 'tag'; tagId: string }
+  | { type: 'notebook'; notebook: string }
+  | { type: 'tag'; tag: string }
   | { type: 'trash' }
-  | { type: 'search'; results: Note[] };
+  | { type: 'search'; results: NoteSummary[] };
 
 interface NoteListProps {
   context: NoteListContext;
-  selectedNoteId: string | null;
-  onSelectNote: (noteId: string) => void;
+  selectedNotePath: string | null;
+  onSelectNote: (notePath: string) => void;
   onCreateNote: () => void;
   refreshKey?: number;
 }
@@ -22,22 +22,19 @@ interface NoteListProps {
 // ── Helpers ────────────────────────────────────────────────────────
 
 function getSnippet(content: string, maxLen = 120): string {
-  try {
-    const parsed = JSON.parse(content);
-    // Extract text from TipTap JSON
-    const texts: string[] = [];
-    const walk = (node: any) => {
-      if (node.text) texts.push(node.text);
-      if (node.content) node.content.forEach(walk);
-    };
-    walk(parsed);
-    const plain = texts.join(' ').trim();
-    return plain.length > maxLen ? plain.slice(0, maxLen) + '…' : plain;
-  } catch {
-    // Fallback: treat as plain text
-    const plain = content.replace(/<[^>]*>/g, '').trim();
-    return plain.length > maxLen ? plain.slice(0, maxLen) + '…' : plain;
-  }
+  // Content is now Markdown — strip basic formatting for snippet
+  const plain = content
+    .replace(/^---[\s\S]*?---\n?/, '') // strip frontmatter if present
+    .replace(/^#+\s+/gm, '')           // strip heading markers
+    .replace(/\*\*|__/g, '')           // strip bold
+    .replace(/\*|_/g, '')             // strip italic
+    .replace(/~~(.*?)~~/g, '$1')      // strip strikethrough
+    .replace(/`{1,3}[^`]*`{1,3}/g, '') // strip inline code
+    .replace(/!\[.*?\]\(.*?\)/g, '')   // strip images
+    .replace(/\[([^\]]*)\]\(.*?\)/g, '$1') // strip links, keep text
+    .replace(/<[^>]*>/g, '')           // strip HTML
+    .trim();
+  return plain.length > maxLen ? plain.slice(0, maxLen) + '…' : plain;
 }
 
 function formatDate(dateStr: string): string {
@@ -61,8 +58,8 @@ function formatDate(dateStr: string): string {
 function contextTitle(ctx: NoteListContext): string {
   switch (ctx.type) {
     case 'all-notes': return 'All Notes';
-    case 'notebook': return 'Notebook';
-    case 'tag': return 'Tag';
+    case 'notebook': return ctx.notebook;
+    case 'tag': return `Tag: ${ctx.tag}`;
     case 'trash': return 'Trash';
     case 'search': return 'Search Results';
   }
@@ -70,8 +67,8 @@ function contextTitle(ctx: NoteListContext): string {
 
 // ── Component ──────────────────────────────────────────────────────
 
-export function NoteList({ context, selectedNoteId, onSelectNote, onCreateNote, refreshKey }: NoteListProps) {
-  const [notesList, setNotesList] = useState<Note[]>([]);
+export function NoteList({ context, selectedNotePath, onSelectNote, onCreateNote, refreshKey }: NoteListProps) {
+  const [notesList, setNotesList] = useState<NoteSummary[]>([]);
   const [loading, setLoading] = useState(false);
 
   const fetchNotes = useCallback(async () => {
@@ -82,16 +79,16 @@ export function NoteList({ context, selectedNoteId, onSelectNote, onCreateNote, 
 
     setLoading(true);
     try {
-      let result: Note[];
+      let result: NoteSummary[];
       switch (context.type) {
         case 'all-notes':
           result = await notesApi.list();
           break;
         case 'notebook':
-          result = await notesApi.list({ notebookId: context.notebookId });
+          result = await notesApi.list({ notebook: context.notebook });
           break;
         case 'tag':
-          result = await notesApi.list({ tagId: context.tagId });
+          result = await notesApi.list({ tag: context.tag });
           break;
         case 'trash':
           result = await notesApi.list({ trash: true });
@@ -114,28 +111,28 @@ export function NoteList({ context, selectedNoteId, onSelectNote, onCreateNote, 
 
   // ── Drag source for notes ──────────────────────────────────────
 
-  const handleDragStart = (e: React.DragEvent, noteId: string) => {
-    e.dataTransfer.setData(DRAG_TYPE_NOTE, noteId);
+  const handleDragStart = (e: React.DragEvent, notePath: string) => {
+    e.dataTransfer.setData(DRAG_TYPE_NOTE, notePath);
     e.dataTransfer.effectAllowed = 'move';
   };
 
   // ── Trash actions ──────────────────────────────────────────────
 
-  const handleRestore = async (e: React.MouseEvent, noteId: string) => {
+  const handleRestore = async (e: React.MouseEvent, notePath: string) => {
     e.stopPropagation();
     try {
-      await notesApi.restore(noteId);
+      await notesApi.restore(notePath);
       fetchNotes();
     } catch (err) {
       console.error('Failed to restore note:', err);
     }
   };
 
-  const handlePermanentDelete = async (e: React.MouseEvent, noteId: string) => {
+  const handlePermanentDelete = async (e: React.MouseEvent, notePath: string) => {
     e.stopPropagation();
     if (!confirm('Permanently delete this note? This cannot be undone.')) return;
     try {
-      await notesApi.permanentDelete(noteId);
+      await notesApi.permanentDelete(notePath);
       fetchNotes();
     } catch (err) {
       console.error('Failed to permanently delete note:', err);
@@ -181,39 +178,40 @@ export function NoteList({ context, selectedNoteId, onSelectNote, onCreateNote, 
 
         {!loading && notesList.map(note => (
           <div
-            key={note.id}
-            className={`note-list-item ${selectedNoteId === note.id ? 'note-list-item--selected' : ''}`}
-            onClick={() => onSelectNote(note.id)}
+            key={note.path || note.id}
+            className={`note-list-item ${selectedNotePath === note.path ? 'note-list-item--selected' : ''}`}
+            onClick={() => onSelectNote(note.path)}
             draggable={context.type !== 'trash'}
-            onDragStart={(e) => handleDragStart(e, note.id)}
+            onDragStart={(e) => handleDragStart(e, note.path)}
             role="button"
             tabIndex={0}
-            onKeyDown={(e) => { if (e.key === 'Enter') onSelectNote(note.id); }}
+            onKeyDown={(e) => { if (e.key === 'Enter') onSelectNote(note.path); }}
           >
             <div className="note-list-item-title">
               {note.title || 'Untitled'}
             </div>
             <div className="note-list-item-snippet">
-              {getSnippet(note.content)}
+              {note.snippet || getSnippet(note.title)}
             </div>
             <div className="note-list-item-meta">
               <span className="note-list-item-date">
-                {context.type === 'trash' && note.trashed_at
-                  ? `Deleted ${formatDate(note.trashed_at)}`
-                  : formatDate(note.updated_at)}
+                {formatDate(note.modified)}
               </span>
+              {note.notebook && (
+                <span className="note-list-item-notebook">{note.notebook}</span>
+              )}
               {note.tags && note.tags.length > 0 && (
                 <span className="note-list-item-tags">
-                  {note.tags.map(t => t.name).join(', ')}
+                  {note.tags.join(', ')}
                 </span>
               )}
             </div>
             {context.type === 'trash' && (
               <div className="note-list-item-trash-actions">
-                <button className="note-trash-btn" onClick={(e) => handleRestore(e, note.id)} title="Restore">
+                <button className="note-trash-btn" onClick={(e) => handleRestore(e, note.path)} title="Restore">
                   ↩ Restore
                 </button>
-                <button className="note-trash-btn note-trash-btn--danger" onClick={(e) => handlePermanentDelete(e, note.id)} title="Delete permanently">
+                <button className="note-trash-btn note-trash-btn--danger" onClick={(e) => handlePermanentDelete(e, note.path)} title="Delete permanently">
                   ✕ Delete
                 </button>
               </div>

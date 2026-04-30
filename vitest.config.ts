@@ -28,6 +28,14 @@ export default defineConfig({
           testTimeout: 10_000,
         },
       },
+      {
+        test: {
+          name: 'electron',
+          include: ['electron/__tests__/**/*.test.ts'],
+          environment: 'node',
+          pool: 'forks',
+        },
+      },
     ],
   },
 });

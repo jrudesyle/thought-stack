@@ -1,5 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { notebooks as notebooksApi, stacks as stacksApi, tags as tagsApi, notes as notesApi, type Notebook, type Tag } from '../api/client';
+import {
+  notebooks as notebooksApi,
+  tags as tagsApi,
+  notes as notesApi,
+  type NotebookInfo,
+  type TagInfo,
+} from '../api/electron-client';
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -7,28 +13,27 @@ export type SidebarView = 'all-notes' | 'notebook' | 'tag' | 'trash';
 
 interface SidebarProps {
   activeView: SidebarView;
-  selectedNotebookId: string | null;
-  selectedTagId: string | null;
+  selectedNotebookName: string | null;
+  selectedTagName: string | null;
   collapsed: boolean;
   onSelectView: (view: SidebarView) => void;
-  onSelectNotebook: (notebookId: string) => void;
-  onSelectTag: (tagId: string) => void;
+  onSelectNotebook: (notebookName: string) => void;
+  onSelectTag: (tagName: string) => void;
   onToggleCollapse: () => void;
   onDataChange?: () => void;
 }
 
 interface StackGroup {
-  id: string;
   name: string;
-  notebooks: Notebook[];
+  notebooks: NotebookInfo[];
 }
 
 interface ContextMenuState {
   x: number;
   y: number;
   type: 'notebook' | 'stack' | 'tag';
-  id: string;
   name: string;
+  path?: string;
 }
 
 // ── Drag-and-drop types ────────────────────────────────────────────
@@ -40,8 +45,8 @@ const DRAG_TYPE_NOTE = 'application/x-note';
 
 export function Sidebar({
   activeView,
-  selectedNotebookId,
-  selectedTagId,
+  selectedNotebookName,
+  selectedTagName,
   collapsed,
   onSelectView,
   onSelectNotebook,
@@ -49,14 +54,14 @@ export function Sidebar({
   onToggleCollapse,
   onDataChange,
 }: SidebarProps) {
-  const [allNotebooks, setAllNotebooks] = useState<Notebook[]>([]);
-  const [allTags, setAllTags] = useState<Tag[]>([]);
+  const [allNotebooks, setAllNotebooks] = useState<NotebookInfo[]>([]);
+  const [allTags, setAllTags] = useState<TagInfo[]>([]);
   const [expandedStacks, setExpandedStacks] = useState<Set<string>>(new Set());
   const [notebooksExpanded, setNotebooksExpanded] = useState(true);
   const [tagsExpanded, setTagsExpanded] = useState(true);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
-  const [editingItem, setEditingItem] = useState<{ type: string; id: string; name: string } | null>(null);
-  const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+  const [editingItem, setEditingItem] = useState<{ type: string; name: string; path?: string } | null>(null);
+  const [dropTargetName, setDropTargetName] = useState<string | null>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
 
   // ── Data fetching ──────────────────────────────────────────────
@@ -75,13 +80,6 @@ export function Sidebar({
     fetchData();
   }, [fetchData]);
 
-  // Expose refresh for parent
-  useEffect(() => {
-    if (onDataChange) {
-      // Parent can call this indirectly by changing a key prop
-    }
-  }, [onDataChange]);
-
   // Re-fetch when parent signals data change
   useEffect(() => {
     fetchData();
@@ -90,15 +88,15 @@ export function Sidebar({
   // ── Organize notebooks into stacks and standalone ──────────────
 
   const stackGroups: StackGroup[] = [];
-  const standaloneNotebooks: Notebook[] = [];
+  const standaloneNotebooks: NotebookInfo[] = [];
   const stackMap = new Map<string, StackGroup>();
 
   for (const nb of allNotebooks) {
-    if (nb.stack_id) {
-      let group = stackMap.get(nb.stack_id);
+    if (nb.stack) {
+      let group = stackMap.get(nb.stack);
       if (!group) {
-        group = { id: nb.stack_id, name: nb.stack_name || 'Stack', notebooks: [] };
-        stackMap.set(nb.stack_id, group);
+        group = { name: nb.stack, notebooks: [] };
+        stackMap.set(nb.stack, group);
         stackGroups.push(group);
       }
       group.notebooks.push(nb);
@@ -109,9 +107,9 @@ export function Sidebar({
 
   // ── Context menu handlers ──────────────────────────────────────
 
-  const handleContextMenu = (e: React.MouseEvent, type: 'notebook' | 'stack' | 'tag', id: string, name: string) => {
+  const handleContextMenu = (e: React.MouseEvent, type: 'notebook' | 'stack' | 'tag', name: string, path?: string) => {
     e.preventDefault();
-    setContextMenu({ x: e.clientX, y: e.clientY, type, id, name });
+    setContextMenu({ x: e.clientX, y: e.clientY, type, name, path });
   };
 
   const closeContextMenu = useCallback(() => setContextMenu(null), []);
@@ -126,21 +124,25 @@ export function Sidebar({
 
   const handleRename = () => {
     if (!contextMenu) return;
-    setEditingItem({ type: contextMenu.type, id: contextMenu.id, name: contextMenu.name });
+    setEditingItem({ type: contextMenu.type, name: contextMenu.name, path: contextMenu.path });
     closeContextMenu();
   };
 
   const handleDelete = async () => {
     if (!contextMenu) return;
-    const { type, id, name } = contextMenu;
+    const { type, name, path } = contextMenu;
     closeContextMenu();
 
     if (!confirm(`Delete "${name}"?`)) return;
 
     try {
-      if (type === 'notebook') await notebooksApi.delete(id);
-      else if (type === 'stack') await stacksApi.delete(id);
-      else if (type === 'tag') await tagsApi.delete(id);
+      if (type === 'notebook' && path) {
+        await notebooksApi.delete(path);
+      } else if (type === 'tag') {
+        // Tags are derived from frontmatter — renaming to empty effectively removes
+        // For now, we don't have a delete tag API; tags disappear when removed from all notes
+        console.warn('Tag deletion not directly supported — remove tag from all notes instead');
+      }
       fetchData();
     } catch (err) {
       console.error(`Failed to delete ${type}:`, err);
@@ -153,9 +155,11 @@ export function Sidebar({
       return;
     }
     try {
-      if (editingItem.type === 'notebook') await notebooksApi.update(editingItem.id, { name: newName.trim() });
-      else if (editingItem.type === 'stack') await stacksApi.update(editingItem.id, newName.trim());
-      else if (editingItem.type === 'tag') await tagsApi.rename(editingItem.id, newName.trim());
+      if (editingItem.type === 'notebook' && editingItem.path) {
+        await notebooksApi.rename(editingItem.path, newName.trim());
+      } else if (editingItem.type === 'tag') {
+        await tagsApi.rename(editingItem.name, newName.trim());
+      }
       fetchData();
     } catch (err) {
       console.error(`Failed to rename ${editingItem.type}:`, err);
@@ -178,7 +182,7 @@ export function Sidebar({
     try {
       const nb = await notebooksApi.create(name.trim());
       fetchData();
-      onSelectNotebook(nb.id);
+      onSelectNotebook(nb.name);
     } catch (err) {
       console.error('Failed to create notebook:', err);
     }
@@ -186,58 +190,33 @@ export function Sidebar({
 
   // ── Drag-and-drop handlers ────────────────────────────────────
 
-  const handleNotebookDragStart = (e: React.DragEvent, notebookId: string) => {
-    e.dataTransfer.setData(DRAG_TYPE_NOTEBOOK, notebookId);
+  const handleNotebookDragStart = (e: React.DragEvent, notebookName: string) => {
+    e.dataTransfer.setData(DRAG_TYPE_NOTEBOOK, notebookName);
     e.dataTransfer.effectAllowed = 'move';
   };
 
-  const handleNotebookDragOver = (e: React.DragEvent, targetId: string) => {
-    // Accept notebook or note drops
+  const handleNotebookDragOver = (e: React.DragEvent, targetName: string) => {
     if (e.dataTransfer.types.includes(DRAG_TYPE_NOTEBOOK) || e.dataTransfer.types.includes(DRAG_TYPE_NOTE)) {
       e.preventDefault();
       e.dataTransfer.dropEffect = 'move';
-      setDropTargetId(targetId);
+      setDropTargetName(targetName);
     }
   };
 
   const handleNotebookDragLeave = () => {
-    setDropTargetId(null);
+    setDropTargetName(null);
   };
 
-  const handleNotebookDrop = async (e: React.DragEvent, targetNotebookId: string) => {
+  const handleNotebookDrop = async (e: React.DragEvent, targetNotebookName: string) => {
     e.preventDefault();
-    setDropTargetId(null);
+    setDropTargetName(null);
 
-    const draggedNotebookId = e.dataTransfer.getData(DRAG_TYPE_NOTEBOOK);
-    const draggedNoteId = e.dataTransfer.getData(DRAG_TYPE_NOTE);
+    const draggedNotePath = e.dataTransfer.getData(DRAG_TYPE_NOTE);
 
-    if (draggedNotebookId && draggedNotebookId !== targetNotebookId) {
-      // Notebook dropped on notebook → create stack
-      try {
-        const targetNb = allNotebooks.find(n => n.id === targetNotebookId);
-        const draggedNb = allNotebooks.find(n => n.id === draggedNotebookId);
-        if (!targetNb || !draggedNb) return;
-
-        if (targetNb.stack_id) {
-          // Target is already in a stack → move dragged notebook into that stack
-          await notebooksApi.update(draggedNotebookId, { stackId: targetNb.stack_id });
-        } else {
-          // Neither in a stack → create new stack
-          const stackName = `${targetNb.name} & ${draggedNb.name}`;
-          const stack = await stacksApi.create(stackName);
-          await notebooksApi.update(targetNotebookId, { stackId: stack.id });
-          await notebooksApi.update(draggedNotebookId, { stackId: stack.id });
-        }
-        fetchData();
-      } catch (err) {
-        console.error('Failed to create stack via drag:', err);
-      }
-    }
-
-    if (draggedNoteId) {
+    if (draggedNotePath) {
       // Note dropped on notebook → move note
       try {
-        await notesApi.move(draggedNoteId, targetNotebookId);
+        await notesApi.move(draggedNotePath, targetNotebookName);
         fetchData();
       } catch (err) {
         console.error('Failed to move note via drag:', err);
@@ -245,23 +224,27 @@ export function Sidebar({
     }
   };
 
-  const handleStackDragOver = (e: React.DragEvent, stackId: string) => {
+  const handleStackDragOver = (e: React.DragEvent, stackName: string) => {
     if (e.dataTransfer.types.includes(DRAG_TYPE_NOTEBOOK)) {
       e.preventDefault();
       e.dataTransfer.dropEffect = 'move';
-      setDropTargetId(`stack-${stackId}`);
+      setDropTargetName(`stack-${stackName}`);
     }
   };
 
-  const handleStackDrop = async (e: React.DragEvent, stackId: string) => {
+  const handleStackDrop = async (e: React.DragEvent, stackName: string) => {
     e.preventDefault();
-    setDropTargetId(null);
+    setDropTargetName(null);
 
-    const draggedNotebookId = e.dataTransfer.getData(DRAG_TYPE_NOTEBOOK);
-    if (draggedNotebookId) {
+    const draggedNotebookName = e.dataTransfer.getData(DRAG_TYPE_NOTEBOOK);
+    if (draggedNotebookName) {
       try {
-        await notebooksApi.update(draggedNotebookId, { stackId });
-        fetchData();
+        // Find the notebook's path
+        const nb = allNotebooks.find(n => n.name === draggedNotebookName);
+        if (nb) {
+          await notebooksApi.move(nb.path, stackName);
+          fetchData();
+        }
       } catch (err) {
         console.error('Failed to move notebook to stack:', err);
       }
@@ -270,8 +253,8 @@ export function Sidebar({
 
   // ── Render helpers ─────────────────────────────────────────────
 
-  const renderEditableLabel = (type: string, id: string, label: string) => {
-    if (editingItem && editingItem.type === type && editingItem.id === id) {
+  const renderEditableLabel = (type: string, name: string, label: string) => {
+    if (editingItem && editingItem.type === type && editingItem.name === name) {
       return (
         <input
           ref={editInputRef}
@@ -289,11 +272,11 @@ export function Sidebar({
     return <span className="sidebar-label">{label}</span>;
   };
 
-  const toggleStack = (stackId: string) => {
+  const toggleStack = (stackName: string) => {
     setExpandedStacks(prev => {
       const next = new Set(prev);
-      if (next.has(stackId)) next.delete(stackId);
-      else next.add(stackId);
+      if (next.has(stackName)) next.delete(stackName);
+      else next.add(stackName);
       return next;
     });
   };
@@ -334,36 +317,36 @@ export function Sidebar({
               {/* Stacks */}
               {stackGroups.map(stack => (
                 <div
-                  key={stack.id}
-                  className={`sidebar-stack ${dropTargetId === `stack-${stack.id}` ? 'sidebar-item--drop-target' : ''}`}
-                  onDragOver={(e) => handleStackDragOver(e, stack.id)}
+                  key={stack.name}
+                  className={`sidebar-stack ${dropTargetName === `stack-${stack.name}` ? 'sidebar-item--drop-target' : ''}`}
+                  onDragOver={(e) => handleStackDragOver(e, stack.name)}
                   onDragLeave={handleNotebookDragLeave}
-                  onDrop={(e) => handleStackDrop(e, stack.id)}
+                  onDrop={(e) => handleStackDrop(e, stack.name)}
                 >
                   <button
                     className="sidebar-item sidebar-stack-header"
-                    onClick={() => toggleStack(stack.id)}
-                    onContextMenu={(e) => handleContextMenu(e, 'stack', stack.id, stack.name)}
+                    onClick={() => toggleStack(stack.name)}
+                    onContextMenu={(e) => handleContextMenu(e, 'stack', stack.name)}
                   >
-                    <span className={`sidebar-chevron ${expandedStacks.has(stack.id) ? 'sidebar-chevron--open' : ''}`}>▶</span>
-                    📚 {renderEditableLabel('stack', stack.id, stack.name)}
+                    <span className={`sidebar-chevron ${expandedStacks.has(stack.name) ? 'sidebar-chevron--open' : ''}`}>▶</span>
+                    📚 {renderEditableLabel('stack', stack.name, stack.name)}
                   </button>
-                  {expandedStacks.has(stack.id) && stack.notebooks.map(nb => (
+                  {expandedStacks.has(stack.name) && stack.notebooks.map(nb => (
                     <button
-                      key={nb.id}
+                      key={nb.path}
                       className={`sidebar-item sidebar-notebook sidebar-notebook--nested ${
-                        activeView === 'notebook' && selectedNotebookId === nb.id ? 'sidebar-item--active' : ''
-                      } ${dropTargetId === nb.id ? 'sidebar-item--drop-target' : ''}`}
-                      onClick={() => onSelectNotebook(nb.id)}
-                      onContextMenu={(e) => handleContextMenu(e, 'notebook', nb.id, nb.name)}
+                        activeView === 'notebook' && selectedNotebookName === nb.name ? 'sidebar-item--active' : ''
+                      } ${dropTargetName === nb.name ? 'sidebar-item--drop-target' : ''}`}
+                      onClick={() => onSelectNotebook(nb.name)}
+                      onContextMenu={(e) => handleContextMenu(e, 'notebook', nb.name, nb.path)}
                       draggable
-                      onDragStart={(e) => handleNotebookDragStart(e, nb.id)}
-                      onDragOver={(e) => handleNotebookDragOver(e, nb.id)}
+                      onDragStart={(e) => handleNotebookDragStart(e, nb.name)}
+                      onDragOver={(e) => handleNotebookDragOver(e, nb.name)}
                       onDragLeave={handleNotebookDragLeave}
-                      onDrop={(e) => handleNotebookDrop(e, nb.id)}
+                      onDrop={(e) => handleNotebookDrop(e, nb.name)}
                     >
-                      📓 {renderEditableLabel('notebook', nb.id, nb.name)}
-                      <span className="sidebar-count">{nb.note_count ?? 0}</span>
+                      📓 {renderEditableLabel('notebook', nb.name, nb.name)}
+                      <span className="sidebar-count">{nb.noteCount ?? 0}</span>
                     </button>
                   ))}
                 </div>
@@ -372,20 +355,20 @@ export function Sidebar({
               {/* Standalone notebooks */}
               {standaloneNotebooks.map(nb => (
                 <button
-                  key={nb.id}
+                  key={nb.path}
                   className={`sidebar-item sidebar-notebook ${
-                    activeView === 'notebook' && selectedNotebookId === nb.id ? 'sidebar-item--active' : ''
-                  } ${dropTargetId === nb.id ? 'sidebar-item--drop-target' : ''}`}
-                  onClick={() => onSelectNotebook(nb.id)}
-                  onContextMenu={(e) => handleContextMenu(e, 'notebook', nb.id, nb.name)}
+                    activeView === 'notebook' && selectedNotebookName === nb.name ? 'sidebar-item--active' : ''
+                  } ${dropTargetName === nb.name ? 'sidebar-item--drop-target' : ''}`}
+                  onClick={() => onSelectNotebook(nb.name)}
+                  onContextMenu={(e) => handleContextMenu(e, 'notebook', nb.name, nb.path)}
                   draggable
-                  onDragStart={(e) => handleNotebookDragStart(e, nb.id)}
-                  onDragOver={(e) => handleNotebookDragOver(e, nb.id)}
+                  onDragStart={(e) => handleNotebookDragStart(e, nb.name)}
+                  onDragOver={(e) => handleNotebookDragOver(e, nb.name)}
                   onDragLeave={handleNotebookDragLeave}
-                  onDrop={(e) => handleNotebookDrop(e, nb.id)}
+                  onDrop={(e) => handleNotebookDrop(e, nb.name)}
                 >
-                  📓 {renderEditableLabel('notebook', nb.id, nb.name)}
-                  <span className="sidebar-count">{nb.note_count ?? 0}</span>
+                  📓 {renderEditableLabel('notebook', nb.name, nb.name)}
+                  <span className="sidebar-count">{nb.noteCount ?? 0}</span>
                 </button>
               ))}
 
@@ -410,15 +393,15 @@ export function Sidebar({
             <div className="sidebar-section-content">
               {allTags.map(tag => (
                 <button
-                  key={tag.id}
+                  key={tag.name}
                   className={`sidebar-item sidebar-tag ${
-                    activeView === 'tag' && selectedTagId === tag.id ? 'sidebar-item--active' : ''
+                    activeView === 'tag' && selectedTagName === tag.name ? 'sidebar-item--active' : ''
                   }`}
-                  onClick={() => onSelectTag(tag.id)}
-                  onContextMenu={(e) => handleContextMenu(e, 'tag', tag.id, tag.name)}
+                  onClick={() => onSelectTag(tag.name)}
+                  onContextMenu={(e) => handleContextMenu(e, 'tag', tag.name)}
                 >
-                  🏷️ {renderEditableLabel('tag', tag.id, tag.name)}
-                  <span className="sidebar-count">{tag.note_count ?? 0}</span>
+                  🏷️ {renderEditableLabel('tag', tag.name, tag.name)}
+                  <span className="sidebar-count">{tag.noteCount ?? 0}</span>
                 </button>
               ))}
               {allTags.length === 0 && (

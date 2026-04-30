@@ -1,5 +1,5 @@
 /**
- * Service Worker for ThoughtRepo PWA.
+ * Service Worker for ThoughtStack PWA.
  *
  * Strategy:
  *   - App shell (HTML, CSS, JS): cache-first with background update

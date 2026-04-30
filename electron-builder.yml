@@ -1,0 +1,32 @@
+appId: com.thoughtstack.app
+productName: ThoughtStack
+
+directories:
+  output: release
+
+files:
+  - dist/electron/**/*
+  - dist/client/**/*
+
+extraMetadata:
+  main: dist/electron/main.js
+
+mac:
+  category: public.app-category.productivity
+  target:
+    - dmg
+    - zip
+
+win:
+  target:
+    - nsis
+
+linux:
+  category: Office
+  target:
+    - AppImage
+    - deb
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true

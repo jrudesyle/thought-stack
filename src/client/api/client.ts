@@ -1,5 +1,5 @@
 /**
- * Typed API client for ThoughtRepo.
+ * Typed API client for ThoughtStack.
  *
  * Handles error responses, parses the ApiError format, logs errors to console,
  * and provides retry with exponential backoff for auto-save failures.

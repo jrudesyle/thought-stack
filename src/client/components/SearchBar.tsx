@@ -4,9 +4,9 @@ import {
   notebooks as notebooksApi,
   tags as tagsApi,
   type SearchResult,
-  type Notebook,
-  type Tag,
-} from '../api/client';
+  type NotebookInfo,
+  type TagInfo,
+} from '../api/electron-client';
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -23,11 +23,11 @@ export function SearchBar({ onSearchResults, onClearSearch, isSearchActive }: Se
   const [results, setResults] = useState<SearchResult[]>([]);
   const [showResults, setShowResults] = useState(false);
   const [noResults, setNoResults] = useState(false);
-  const [filterNotebookId, setFilterNotebookId] = useState<string>('');
-  const [filterTagId, setFilterTagId] = useState<string>('');
+  const [filterNotebook, setFilterNotebook] = useState<string>('');
+  const [filterTag, setFilterTag] = useState<string>('');
   const [showFilters, setShowFilters] = useState(false);
-  const [allNotebooks, setAllNotebooks] = useState<Notebook[]>([]);
-  const [allTags, setAllTags] = useState<Tag[]>([]);
+  const [allNotebooks, setAllNotebooks] = useState<NotebookInfo[]>([]);
+  const [allTags, setAllTags] = useState<TagInfo[]>([]);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -46,7 +46,7 @@ export function SearchBar({ onSearchResults, onClearSearch, isSearchActive }: Se
 
   // ── Search with debounce ───────────────────────────────────────
 
-  const performSearch = useCallback(async (q: string, nbId: string, tId: string) => {
+  const performSearch = useCallback(async (q: string, nb: string, tg: string) => {
     if (!q.trim()) {
       setResults([]);
       setShowResults(false);
@@ -55,13 +55,14 @@ export function SearchBar({ onSearchResults, onClearSearch, isSearchActive }: Se
     }
 
     try {
-      const filters: { notebookId?: string; tagId?: string } = {};
-      if (nbId) filters.notebookId = nbId;
-      if (tId) filters.tagId = tId;
+      const filters: { notebook?: string; tag?: string } = {};
+      if (nb) filters.notebook = nb;
+      if (tg) filters.tag = tg;
 
-      const response = await searchApi.query(q, filters);
-      setResults(response.results);
-      setNoResults(response.results.length === 0);
+      // search.query returns SearchResult[] directly (no wrapper)
+      const searchResults = await searchApi.query(q, filters);
+      setResults(searchResults);
+      setNoResults(searchResults.length === 0);
       setShowResults(true);
     } catch (err) {
       console.error('Search failed:', err);
@@ -86,15 +87,14 @@ export function SearchBar({ onSearchResults, onClearSearch, isSearchActive }: Se
     }
 
     debounceRef.current = setTimeout(() => {
-      performSearch(val, filterNotebookId, filterTagId);
+      performSearch(val, filterNotebook, filterTag);
     }, 300);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && query.trim()) {
       if (debounceRef.current) clearTimeout(debounceRef.current);
-      performSearch(query, filterNotebookId, filterTagId);
-      // Push results to parent for full-view display
+      performSearch(query, filterNotebook, filterTag);
       onSearchResults(results, query);
       setShowResults(false);
     }
@@ -108,13 +108,12 @@ export function SearchBar({ onSearchResults, onClearSearch, isSearchActive }: Se
     setResults([]);
     setShowResults(false);
     setNoResults(false);
-    setFilterNotebookId('');
-    setFilterTagId('');
+    setFilterNotebook('');
+    setFilterTag('');
     if (isSearchActive) onClearSearch();
   };
 
-  const handleResultClick = (result: SearchResult) => {
-    // Push single result to parent as search results view
+  const handleResultClick = (_result: SearchResult) => {
     onSearchResults(results, query);
     setShowResults(false);
   };
@@ -124,10 +123,10 @@ export function SearchBar({ onSearchResults, onClearSearch, isSearchActive }: Se
     if (query.trim()) {
       if (debounceRef.current) clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(() => {
-        performSearch(query, filterNotebookId, filterTagId);
+        performSearch(query, filterNotebook, filterTag);
       }, 300);
     }
-  }, [filterNotebookId, filterTagId]);
+  }, [filterNotebook, filterTag]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -174,24 +173,24 @@ export function SearchBar({ onSearchResults, onClearSearch, isSearchActive }: Se
         <div className="search-filters">
           <select
             className="search-filter-select"
-            value={filterNotebookId}
-            onChange={(e) => setFilterNotebookId(e.target.value)}
+            value={filterNotebook}
+            onChange={(e) => setFilterNotebook(e.target.value)}
             aria-label="Filter by notebook"
           >
             <option value="">All notebooks</option>
             {allNotebooks.map(nb => (
-              <option key={nb.id} value={nb.id}>{nb.name}</option>
+              <option key={nb.path} value={nb.name}>{nb.name}</option>
             ))}
           </select>
           <select
             className="search-filter-select"
-            value={filterTagId}
-            onChange={(e) => setFilterTagId(e.target.value)}
+            value={filterTag}
+            onChange={(e) => setFilterTag(e.target.value)}
             aria-label="Filter by tag"
           >
             <option value="">All tags</option>
             {allTags.map(tag => (
-              <option key={tag.id} value={tag.id}>{tag.name}</option>
+              <option key={tag.name} value={tag.name}>{tag.name}</option>
             ))}
           </select>
         </div>
@@ -216,7 +215,7 @@ export function SearchBar({ onSearchResults, onClearSearch, isSearchActive }: Se
                 dangerouslySetInnerHTML={{ __html: result.snippet }}
               />
               <div className="search-result-meta">
-                <span>{result.notebookName}</span>
+                <span>{result.notebook}</span>
                 {result.tags.length > 0 && (
                   <span className="search-result-tags">{result.tags.join(', ')}</span>
                 )}

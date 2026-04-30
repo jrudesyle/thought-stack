@@ -1,10 +1,10 @@
 /**
- * Import Notion HTML export into ThoughtRepo.
+ * Import Notion HTML export into ThoughtStack.
  *
  * Usage: node --experimental-strip-types scripts/import-notion.ts /path/to/notion/export/dir
  *
  * Reads all .html files from the Notion export directory, converts them to
- * TipTap JSON, and imports them into ThoughtRepo via the API.
+ * TipTap JSON, and imports them into ThoughtStack via the API.
  */
 
 import { readFileSync, readdirSync, statSync } from 'node:fs';

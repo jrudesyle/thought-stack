@@ -5,17 +5,31 @@ import { NoteEditor } from './components/NoteEditor';
 import { SearchBar } from './components/SearchBar';
 import { SettingsPanel, applyTheme, loadThemePreference } from './components/SettingsPanel';
 import { OfflineIndicator } from './components/OfflineIndicator';
-import { notebooks as notebooksApi, notes as notesApi, type SearchResult, type Note } from './api/client';
+import { VaultPicker } from './components/VaultPicker';
+import {
+  notebooks as notebooksApi,
+  notes as notesApi,
+  system as systemApi,
+  conflicts as conflictsApi,
+  type SearchResult,
+  type NoteSummary,
+  type ConflictFile,
+} from './api/electron-client';
 
 // ── App State ──────────────────────────────────────────────────────
 
 type AppView = 'all-notes' | 'notebook' | 'tag' | 'trash' | 'search';
 
 export function App() {
+  // Vault state
+  const [vaultReady, setVaultReady] = useState(false);
+  const [vaultPath, setVaultPath] = useState('');
+  const [vaultChecked, setVaultChecked] = useState(false);
+
   const [activeView, setActiveView] = useState<AppView>('all-notes');
-  const [selectedNotebookId, setSelectedNotebookId] = useState<string | null>(null);
-  const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
-  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
+  const [selectedNotebookName, setSelectedNotebookName] = useState<string | null>(null);
+  const [selectedTagName, setSelectedTagName] = useState<string | null>(null);
+  const [selectedNotePath, setSelectedNotePath] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     try {
       return localStorage.getItem('sidebar-collapsed') === 'true';
@@ -23,19 +37,76 @@ export function App() {
       return false;
     }
   });
-  const [searchResults, setSearchResults] = useState<Note[]>([]);
+  const [searchResults, setSearchResults] = useState<NoteSummary[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [previousView, setPreviousView] = useState<AppView>('all-notes');
-  const [previousNotebookId, setPreviousNotebookId] = useState<string | null>(null);
-  const [previousTagId, setPreviousTagId] = useState<string | null>(null);
+  const [previousNotebookName, setPreviousNotebookName] = useState<string | null>(null);
+  const [previousTagName, setPreviousTagName] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [dataChangeKey, setDataChangeKey] = useState(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [conflictFiles, setConflictFiles] = useState<ConflictFile[]>([]);
+  const [conflictBannerDismissed, setConflictBannerDismissed] = useState(false);
+
+  // ── Check vault on mount ───────────────────────────────────────
+
+  useEffect(() => {
+    // Guard: if electronAPI is not available, skip vault check
+    if (!window.electronAPI) {
+      setVaultChecked(true);
+      return;
+    }
+
+    (async () => {
+      try {
+        const path = await systemApi.getVaultPath();
+        if (path) {
+          setVaultPath(path);
+          setVaultReady(true);
+        }
+      } catch (err) {
+        console.error('Failed to check vault path:', err);
+      } finally {
+        setVaultChecked(true);
+      }
+    })();
+  }, []);
 
   // ── Load theme preference on mount ─────────────────────────────
 
   useEffect(() => {
     loadThemePreference().then(applyTheme);
+  }, []);
+
+  // ── Detect cloud sync conflicts when vault is ready ────────────
+
+  useEffect(() => {
+    if (!vaultReady || !window.electronAPI) return;
+
+    (async () => {
+      try {
+        const detected = await conflictsApi.detect();
+        if (Array.isArray(detected)) {
+          setConflictFiles(detected);
+        }
+      } catch (err) {
+        console.error('Failed to detect conflicts:', err);
+      }
+    })();
+  }, [vaultReady, dataChangeKey]);
+
+  // ── Vault ready callback ───────────────────────────────────────
+
+  const handleVaultReady = useCallback(async () => {
+    try {
+      const path = await systemApi.getVaultPath();
+      setVaultPath(path);
+    } catch {
+      // Proceed anyway
+    }
+    setVaultReady(true);
+    setDataChangeKey(k => k + 1);
+    setRefreshKey(k => k + 1);
   }, []);
 
   // ── Sidebar collapse persistence ───────────────────────────────
@@ -52,27 +123,27 @@ export function App() {
 
   const handleSelectView = useCallback((view: SidebarView) => {
     setActiveView(view);
-    setSelectedNotebookId(null);
-    setSelectedTagId(null);
-    setSelectedNoteId(null);
+    setSelectedNotebookName(null);
+    setSelectedTagName(null);
+    setSelectedNotePath(null);
   }, []);
 
-  const handleSelectNotebook = useCallback((notebookId: string) => {
+  const handleSelectNotebook = useCallback((notebookName: string) => {
     setActiveView('notebook');
-    setSelectedNotebookId(notebookId);
-    setSelectedTagId(null);
-    setSelectedNoteId(null);
+    setSelectedNotebookName(notebookName);
+    setSelectedTagName(null);
+    setSelectedNotePath(null);
   }, []);
 
-  const handleSelectTag = useCallback((tagId: string) => {
+  const handleSelectTag = useCallback((tagName: string) => {
     setActiveView('tag');
-    setSelectedTagId(tagId);
-    setSelectedNotebookId(null);
-    setSelectedNoteId(null);
+    setSelectedTagName(tagName);
+    setSelectedNotebookName(null);
+    setSelectedNotePath(null);
   }, []);
 
-  const handleSelectNote = useCallback((noteId: string) => {
-    setSelectedNoteId(noteId);
+  const handleSelectNote = useCallback((notePath: string) => {
+    setSelectedNotePath(notePath);
   }, []);
 
   // ── Search ─────────────────────────────────────────────────────
@@ -81,62 +152,60 @@ export function App() {
     // Save current view for restore
     if (activeView !== 'search') {
       setPreviousView(activeView);
-      setPreviousNotebookId(selectedNotebookId);
-      setPreviousTagId(selectedTagId);
+      setPreviousNotebookName(selectedNotebookName);
+      setPreviousTagName(selectedTagName);
     }
 
-    // Convert SearchResult[] to Note-like objects for NoteList
-    const noteResults: Note[] = results.map(r => ({
+    // Convert SearchResult[] to NoteSummary-like objects for NoteList
+    const noteResults: NoteSummary[] = results.map(r => ({
       id: r.noteId,
       title: r.title,
-      content: r.snippet,
-      notebook_id: '',
-      is_trashed: 0,
-      trashed_at: null,
-      original_notebook_id: null,
-      created_at: r.updatedAt,
-      updated_at: r.updatedAt,
-      tags: r.tags.map(name => ({ id: name, name, created_at: '' })),
+      path: '', // Search results don't carry full path; NoteList handles display
+      notebook: r.notebook,
+      tags: r.tags,
+      created: r.modified,
+      modified: r.modified,
+      snippet: r.snippet,
     }));
 
     setSearchResults(noteResults);
     setSearchQuery(query);
     setActiveView('search');
-  }, [activeView, selectedNotebookId, selectedTagId]);
+  }, [activeView, selectedNotebookName, selectedTagName]);
 
   const handleClearSearch = useCallback(() => {
     setSearchResults([]);
     setSearchQuery('');
     setActiveView(previousView);
-    setSelectedNotebookId(previousNotebookId);
-    setSelectedTagId(previousTagId);
-  }, [previousView, previousNotebookId, previousTagId]);
+    setSelectedNotebookName(previousNotebookName);
+    setSelectedTagName(previousTagName);
+  }, [previousView, previousNotebookName, previousTagName]);
 
   // ── Create note ────────────────────────────────────────────────
 
   const handleCreateNote = useCallback(async () => {
     try {
-      let notebookId = selectedNotebookId;
+      let notebookName = selectedNotebookName;
 
       // If no notebook selected, use first available or create one
-      if (!notebookId) {
+      if (!notebookName) {
         const nbs = await notebooksApi.list();
         if (nbs.length > 0) {
-          notebookId = nbs[0].id;
+          notebookName = nbs[0].name;
         } else {
-          const nb = await notebooksApi.create('My Notebook');
-          notebookId = nb.id;
+          await notebooksApi.create('My Notebook');
+          notebookName = 'My Notebook';
           setDataChangeKey(k => k + 1);
         }
       }
 
-      const note = await notesApi.create(notebookId);
-      setSelectedNoteId(note.id);
+      const note = await notesApi.create(notebookName);
+      setSelectedNotePath(note.path);
       setRefreshKey(k => k + 1);
     } catch (err) {
       console.error('Failed to create note:', err);
     }
-  }, [selectedNotebookId]);
+  }, [selectedNotebookName]);
 
   // ── Note saved callback ────────────────────────────────────────
 
@@ -151,9 +220,9 @@ export function App() {
       case 'all-notes':
         return { type: 'all-notes' as const };
       case 'notebook':
-        return { type: 'notebook' as const, notebookId: selectedNotebookId! };
+        return { type: 'notebook' as const, notebook: selectedNotebookName! };
       case 'tag':
-        return { type: 'tag' as const, tagId: selectedTagId! };
+        return { type: 'tag' as const, tag: selectedTagName! };
       case 'trash':
         return { type: 'trash' as const };
       case 'search':
@@ -168,12 +237,30 @@ export function App() {
   const viewTitle = (): string => {
     switch (activeView) {
       case 'all-notes': return 'All Notes';
-      case 'notebook': return 'Notebook';
-      case 'tag': return 'Tag';
+      case 'notebook': return selectedNotebookName ?? 'Notebook';
+      case 'tag': return `Tag: ${selectedTagName ?? ''}`;
       case 'trash': return 'Trash';
       case 'search': return `Search: "${searchQuery}"`;
     }
   };
+
+  // ── Show loading while checking vault ──────────────────────────
+
+  if (!vaultChecked) {
+    return (
+      <div className="app-layout">
+        <div className="editor-empty" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <p>Loading…</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Show VaultPicker if no vault configured ────────────────────
+
+  if (!vaultReady && window.electronAPI) {
+    return <VaultPicker onVaultReady={handleVaultReady} />;
+  }
 
   return (
     <div className="app-layout">
@@ -203,14 +290,33 @@ export function App() {
         </div>
       </header>
 
+      {/* Conflict Banner */}
+      {conflictFiles.length > 0 && !conflictBannerDismissed && (
+        <div className="conflict-banner" role="alert">
+          <span className="conflict-banner-icon">⚠️</span>
+          <span className="conflict-banner-text">
+            {conflictFiles.length} conflict file{conflictFiles.length !== 1 ? 's' : ''} detected
+            from cloud sync ({[...new Set(conflictFiles.map(c => c.provider))].join(', ')}).
+            Review these files in your vault folder to resolve duplicates.
+          </span>
+          <button
+            className="conflict-banner-dismiss"
+            onClick={() => setConflictBannerDismissed(true)}
+            aria-label="Dismiss conflict warning"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Main content area */}
       <div className="main-content">
         {/* Sidebar */}
         {!sidebarCollapsed && (
           <Sidebar
             activeView={activeView === 'search' ? 'all-notes' : activeView as SidebarView}
-            selectedNotebookId={selectedNotebookId}
-            selectedTagId={selectedTagId}
+            selectedNotebookName={selectedNotebookName}
+            selectedTagName={selectedTagName}
             collapsed={sidebarCollapsed}
             onSelectView={handleSelectView}
             onSelectNotebook={handleSelectNotebook}
@@ -223,7 +329,7 @@ export function App() {
         {/* Note List */}
         <NoteList
           context={noteListContext}
-          selectedNoteId={selectedNoteId}
+          selectedNotePath={selectedNotePath}
           onSelectNote={handleSelectNote}
           onCreateNote={handleCreateNote}
           refreshKey={refreshKey}
@@ -231,7 +337,7 @@ export function App() {
 
         {/* Editor */}
         <NoteEditor
-          noteId={selectedNoteId}
+          notePath={selectedNotePath}
           onNoteSaved={handleNoteSaved}
         />
       </div>

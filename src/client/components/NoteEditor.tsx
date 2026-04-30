@@ -12,7 +12,8 @@ import { TableHeader } from '@tiptap/extension-table-header';
 import { Image } from '@tiptap/extension-image';
 import { Link } from '@tiptap/extension-link';
 import { Placeholder } from '@tiptap/extension-placeholder';
-import { notes as notesApi, type Note } from '../api/client';
+import { Markdown } from 'tiptap-markdown';
+import { notes as notesApi, images as imagesApi, type NoteData } from '../api/electron-client';
 import { TagInput } from './TagInput';
 
 // ── Types ──────────────────────────────────────────────────────────
@@ -20,21 +21,55 @@ import { TagInput } from './TagInput';
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'failed';
 
 interface NoteEditorProps {
-  noteId: string | null;
+  notePath: string | null;
   onNoteSaved?: () => void;
+}
+
+// ── Image path helpers ─────────────────────────────────────────────
+
+/**
+ * Converts relative image paths in Markdown (e.g., `.images/abc.png`)
+ * to vault:// protocol URLs for display in the renderer.
+ */
+function markdownToVaultUrls(markdown: string, notebook: string): string {
+  // Match Markdown image syntax: ![alt](.images/filename)
+  return markdown.replace(
+    /!\[([^\]]*)\]\(\.images\/([^)]+)\)/g,
+    (_match, alt, filename) =>
+      `![${alt}](vault://${encodeURIComponent(notebook)}/.images/${filename})`
+  );
+}
+
+/**
+ * Converts vault:// protocol URLs back to relative image paths
+ * for storage in the Markdown file.
+ */
+function vaultUrlsToMarkdown(markdown: string): string {
+  // Match vault:// URLs in Markdown image syntax
+  return markdown.replace(
+    /!\[([^\]]*)\]\(vault:\/\/[^/]+\/\.images\/([^)]+)\)/g,
+    (_match, alt, filename) => `![${alt}](.images/${filename})`
+  );
 }
 
 // ── Component ──────────────────────────────────────────────────────
 
-export function NoteEditor({ noteId, onNoteSaved }: NoteEditorProps) {
-  const [note, setNote] = useState<Note | null>(null);
+export function NoteEditor({ notePath, onNoteSaved }: NoteEditorProps) {
+  const [note, setNote] = useState<NoteData | null>(null);
   const [title, setTitle] = useState('');
+  const [currentTags, setCurrentTags] = useState<string[]>([]);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [loading, setLoading] = useState(false);
   const titleRef = useRef<HTMLInputElement>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const currentNoteIdRef = useRef<string | null>(null);
+  const currentNotePathRef = useRef<string | null>(null);
+  const currentTagsRef = useRef<string[]>([]);
   const isNewNoteRef = useRef(false);
+
+  // Keep tags ref in sync
+  useEffect(() => {
+    currentTagsRef.current = currentTags;
+  }, [currentTags]);
 
   // ── TipTap editor setup ────────────────────────────────────────
 
@@ -62,10 +97,14 @@ export function NoteEditor({ noteId, onNoteSaved }: NoteEditorProps) {
       Placeholder.configure({
         placeholder: 'Start writing…',
       }),
+      Markdown.configure({
+        html: false,
+        transformPastedText: true,
+        transformCopiedText: true,
+      }),
     ],
     editorProps: {
       handleDrop(view, event) {
-        // Handle image drop
         const files = event.dataTransfer?.files;
         if (files && files.length > 0) {
           const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
@@ -78,7 +117,6 @@ export function NoteEditor({ noteId, onNoteSaved }: NoteEditorProps) {
         return false;
       },
       handlePaste(view, event) {
-        // Handle image paste
         const items = event.clipboardData?.items;
         if (items) {
           for (const item of Array.from(items)) {
@@ -100,14 +138,28 @@ export function NoteEditor({ noteId, onNoteSaved }: NoteEditorProps) {
 
   // ── Image handling ─────────────────────────────────────────────
 
-  const insertImageFromFile = useCallback((file: File) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result as string;
-      editor?.chain().focus().setImage({ src: dataUrl }).run();
-    };
-    reader.readAsDataURL(file);
-  }, [editor]);
+  const insertImageFromFile = useCallback(async (file: File) => {
+    if (!note || !editor) return;
+
+    try {
+      // Read file as ArrayBuffer and save via Electron IPC
+      const arrayBuffer = await file.arrayBuffer();
+      const result = await imagesApi.save(note.notebook, arrayBuffer, file.type);
+      // Insert using vault:// protocol URL so the renderer can load the local file.
+      // result.path is like ".images/abc123.png", we prepend "vault://notebook/"
+      const vaultUrl = `vault://${encodeURIComponent(note.notebook)}/${result.path}`;
+      editor.chain().focus().setImage({ src: vaultUrl }).run();
+    } catch (err) {
+      console.error('Failed to save image:', err);
+      // Fallback: embed as base64
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        editor?.chain().focus().setImage({ src: dataUrl }).run();
+      };
+      reader.readAsDataURL(file);
+    }
+  }, [editor, note]);
 
   const handleImagePicker = useCallback(() => {
     const input = document.createElement('input');
@@ -130,18 +182,21 @@ export function NoteEditor({ noteId, onNoteSaved }: NoteEditorProps) {
   }, []);
 
   const performSave = useCallback(async () => {
-    const id = currentNoteIdRef.current;
-    if (!id || !editor) return;
+    const path = currentNotePathRef.current;
+    if (!path || !editor) return;
 
-    const content = JSON.stringify(editor.getJSON());
+    // Get Markdown content from TipTap, converting vault:// URLs
+    // back to relative image paths for storage.
+    const rawContent = editor.storage.markdown.getMarkdown();
+    const content = vaultUrlsToMarkdown(rawContent);
     const currentTitle = titleRef.current?.value ?? '';
+    const tags = currentTagsRef.current;
 
     setSaveStatus('saving');
     try {
-      await notesApi.update(id, { title: currentTitle, content });
+      await notesApi.save(path, currentTitle, content, tags);
       setSaveStatus('saved');
       onNoteSaved?.();
-      // Reset to idle after 2s
       setTimeout(() => setSaveStatus(prev => prev === 'saved' ? 'idle' : prev), 2000);
     } catch (err) {
       console.error('Auto-save failed:', err);
@@ -149,14 +204,22 @@ export function NoteEditor({ noteId, onNoteSaved }: NoteEditorProps) {
     }
   }, [editor, onNoteSaved]);
 
+  // ── Tag change handler ─────────────────────────────────────────
+
+  const handleTagsChange = useCallback((newTags: string[]) => {
+    setCurrentTags(newTags);
+    scheduleSave();
+  }, [scheduleSave]);
+
   // ── Load note ──────────────────────────────────────────────────
 
   useEffect(() => {
-    currentNoteIdRef.current = noteId;
+    currentNotePathRef.current = notePath;
 
-    if (!noteId) {
+    if (!notePath) {
       setNote(null);
       setTitle('');
+      setCurrentTags([]);
       editor?.commands.clearContent();
       setSaveStatus('idle');
       return;
@@ -167,23 +230,23 @@ export function NoteEditor({ noteId, onNoteSaved }: NoteEditorProps) {
 
     (async () => {
       try {
-        const fetched = await notesApi.get(noteId);
+        const fetched = await notesApi.get(notePath);
         if (cancelled) return;
         setNote(fetched);
         setTitle(fetched.title);
+        setCurrentTags(fetched.tags || []);
 
-        // Set editor content
+        // Set editor content from Markdown, converting relative image paths
+        // to vault:// protocol URLs so the renderer can load them.
         if (editor) {
-          try {
-            const parsed = JSON.parse(fetched.content);
-            editor.commands.setContent(parsed);
-          } catch {
-            editor.commands.setContent(fetched.content || '');
-          }
+          const contentWithVaultUrls = fetched.content
+            ? markdownToVaultUrls(fetched.content, fetched.notebook)
+            : '';
+          editor.commands.setContent(contentWithVaultUrls);
         }
 
         // Focus title for new (empty) notes
-        if (!fetched.title && fetched.content === '{}') {
+        if (!fetched.title && !fetched.content) {
           isNewNoteRef.current = true;
           setTimeout(() => titleRef.current?.focus(), 100);
         } else {
@@ -198,13 +261,12 @@ export function NoteEditor({ noteId, onNoteSaved }: NoteEditorProps) {
 
     return () => {
       cancelled = true;
-      // Save any pending changes before switching
       if (saveTimerRef.current) {
         clearTimeout(saveTimerRef.current);
         saveTimerRef.current = null;
       }
     };
-  }, [noteId, editor]);
+  }, [notePath, editor]);
 
   // Cleanup timer on unmount
   useEffect(() => {
@@ -242,7 +304,7 @@ export function NoteEditor({ noteId, onNoteSaved }: NoteEditorProps) {
 
   // ── Render ─────────────────────────────────────────────────────
 
-  if (!noteId) {
+  if (!notePath) {
     return (
       <main className="editor-panel" aria-label="Note editor">
         <div className="editor-empty">
@@ -429,7 +491,10 @@ export function NoteEditor({ noteId, onNoteSaved }: NoteEditorProps) {
 
       {/* Tags */}
       {note && (
-        <TagInput noteId={note.id} initialTags={note.tags || []} />
+        <TagInput
+          tags={currentTags}
+          onTagsChange={handleTagsChange}
+        />
       )}
 
       {/* Save Status */}

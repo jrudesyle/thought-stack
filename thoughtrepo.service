@@ -1,12 +1,12 @@
 [Unit]
-Description=ThoughtRepo - Self-hosted note-taking PWA
-Documentation=https://github.com/your-user/thoughtrepo
+Description=ThoughtStack - Self-hosted note-taking PWA
+Documentation=https://github.com/your-user/thoughtstack
 After=network.target
 
 [Service]
 Type=simple
 # Adjust these paths to match your installation
-WorkingDirectory=/opt/thoughtrepo
+WorkingDirectory=/opt/thoughtstack
 ExecStart=/usr/bin/node dist/server/index.js
 Restart=on-failure
 RestartSec=5
@@ -21,13 +21,13 @@ Environment=NODE_ENV=production
 # Logging to stdout/stderr (captured by journald)
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=thoughtrepo
+SyslogIdentifier=thoughtstack
 
 # Security hardening
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/opt/thoughtrepo/data /opt/thoughtrepo/plugins
+ReadWritePaths=/opt/thoughtstack/data /opt/thoughtstack/plugins
 PrivateTmp=true
 
 [Install]

@@ -1,22 +1,23 @@
-# ThoughtRepo
+# ThoughtStack
 
-A self-hosted note-taking Progressive Web App (PWA). All data stays on your machine in a local SQLite database — no cloud services, no external data transmission.
+A native desktop note-taking app built with Electron. Notes are stored as Markdown flat files in a local vault directory — human-readable, portable, and ready for cloud drive sync.
 
 ## Features
 
 - Rich text editing with TipTap (bold, italic, headings, lists, checklists, tables, code blocks, images, links)
-- Notebook and notebook stack organization
+- **Markdown flat file storage** — each note is a `.md` file with YAML frontmatter
+- **Vault-based organization** — notebooks are folders, stacks are parent folders
+- **Cloud drive sync** — place your vault on Google Drive, iCloud, Dropbox, or OneDrive
 - Tag-based cross-notebook categorization with auto-complete
-- Full-text search powered by SQLite FTS5
+- Full-text search powered by a local SQLite FTS5 index (rebuilt from files, not the source of truth)
 - Trash with soft-delete and restore
 - Light and dark themes (follows OS preference by default)
-- PWA with offline support via service worker
-- Plugin system for themes, toolbar actions, sidebar sections, and lifecycle hooks
 - JSON export/import for data portability
+- Native desktop app for macOS, Windows, and Linux
 
 ## Prerequisites
 
-- **Node.js** 22.5 or later (uses built-in `node:sqlite`)
+- **Node.js** 22.5 or later
 - **npm** 9 or later
 
 ## Quick Start
@@ -25,145 +26,99 @@ A self-hosted note-taking Progressive Web App (PWA). All data stays on your mach
 # Install dependencies
 npm install
 
-# Build the frontend
-npx vite build --config src/client/vite.config.ts
-
-# Start the server
-node --experimental-strip-types src/server/index.ts
+# Start the Electron app in development mode
+npm run electron:dev
 ```
 
-The app will be available at `http://localhost:3000` by default.
-
-## Configuration
-
-Edit `config.json` in the project root:
-
-```json
-{
-  "port": 3000,
-  "dbPath": "./data/notes.db",
-  "pluginsDir": "./plugins"
-}
-```
-
-| Field | Description | Default |
-|-------|-------------|---------|
-| `port` | HTTP server port | `3000` |
-| `dbPath` | Path to the SQLite database file | `./data/notes.db` |
-| `pluginsDir` | Directory to scan for plugins | `./plugins` |
-
-The database file and `data/` directory are created automatically on first run.
+This builds the Electron main process and launches the app. The frontend uses Vite's dev server for hot reload.
 
 ## Development
 
-```bash
-# Start the backend server
-node --experimental-strip-types src/server/index.ts
+ThoughtStack uses a two-process architecture:
 
-# In another terminal, start the Vite dev server with API proxy
-npx vite --config src/client/vite.config.ts
+1. **Vite dev server** — serves the React frontend with hot module replacement
+2. **Electron main process** — handles file I/O, search indexing, and native features
+
+### Two-terminal workflow
+
+```bash
+# Terminal 1: Start the Vite dev server for the frontend
+npm run dev
+
+# Terminal 2: Build and launch Electron (loads from Vite dev server)
+npm run electron:dev
 ```
 
-The Vite dev server proxies `/api` requests to the backend on port 3000.
+### Available Scripts
+
+| Script | Description |
+|--------|-------------|
+| `npm run dev` | Start the Vite dev server for the frontend |
+| `npm run build` | Build the frontend and Electron main process |
+| `npm run electron:dev` | Build Electron and launch the app |
+| `npm run electron:build` | Package the app for distribution |
+| `npm run electron:preview` | Build everything and preview the production app |
+| `npm test` | Run all tests |
+| `npm run test:unit` | Run unit tests only |
+| `npm run test:property` | Run property-based tests only |
+| `npm run test:integration` | Run integration tests only |
 
 ### Running Tests
 
 ```bash
 # Run all tests
-npx vitest --run
+npm test
 
-# Run tests in watch mode
-npx vitest
+# Run specific test suites
+npm run test:unit
+npm run test:property
+npm run test:integration
 ```
 
-## Deployment on Linux (systemd)
+## Vault Location
 
-A systemd service file is provided at the project root (`thoughtrepo.service`).
+ThoughtStack stores notes in a **vault** — a directory you choose on first launch. The vault structure looks like this:
 
-### Setup
-
-1. Copy the project to your desired location (e.g., `/opt/thoughtrepo`):
-
-   ```bash
-   sudo mkdir -p /opt/thoughtrepo
-   sudo cp -r . /opt/thoughtrepo/
-   ```
-
-2. Create a dedicated user:
-
-   ```bash
-   sudo useradd -r -s /usr/sbin/nologin notes
-   sudo chown -R notes:notes /opt/thoughtrepo
-   ```
-
-3. Install dependencies and build:
-
-   ```bash
-   cd /opt/thoughtrepo
-   sudo -u notes npm install --production
-   sudo -u notes npx vite build --config src/client/vite.config.ts
-   ```
-
-4. Install the systemd service:
-
-   ```bash
-   sudo cp thoughtrepo.service /etc/systemd/system/
-   sudo systemctl daemon-reload
-   ```
-
-5. Start and enable the service:
-
-   ```bash
-   sudo systemctl start thoughtrepo
-   sudo systemctl enable thoughtrepo
-   ```
-
-6. Check status and logs:
-
-   ```bash
-   sudo systemctl status thoughtrepo
-   sudo journalctl -u thoughtrepo -f
-   ```
-
-### Customizing the Service
-
-Edit `/etc/systemd/system/thoughtrepo.service` if you need to change:
-
-- `WorkingDirectory` — path to the app installation
-- `ReadWritePaths` — data and plugin directories
-- `Environment` — environment variables
-
-After editing, reload and restart:
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl restart thoughtrepo
+```
+~/ThoughtStack/                    # Vault root (you pick this)
+├── .thoughtstack/                 # App metadata (hidden)
+│   ├── config.json               # Vault config
+│   └── cache.db                  # Search index (local only, rebuildable)
+├── Meeting Notes/                 # Notebook = folder
+│   ├── Standup 2026-04-30.md     # Note = Markdown file
+│   └── .images/                  # Images for this notebook
+│       └── abc123.png
+├── Personal/                      # Another notebook
+│   └── Ideas.md
+├── Work/                          # Notebook stack = parent folder
+│   ├── Project Alpha/             # Notebook inside stack
+│   │   └── Requirements.md
+│   └── Project Beta/
+│       └── Kickoff Notes.md
+└── .trash/                        # Soft-deleted notes
+    └── .trash-meta.json
 ```
 
-## Plugins
+### Cloud Drive Sync
 
-Place plugin directories in the `plugins/` folder. Each plugin needs a `plugin.json` manifest:
+Place your vault inside a cloud-synced folder to sync notes across devices:
 
-```json
-{
-  "name": "my-plugin",
-  "version": "1.0.0",
-  "description": "A sample plugin",
-  "extensionPoints": [
-    { "type": "theme", "entrypoint": "./theme.css" }
-  ]
-}
-```
+- **Google Drive**: `~/Library/CloudStorage/GoogleDrive-.../My Drive/ThoughtStack/`
+- **iCloud**: `~/Library/Mobile Documents/com~apple~CloudDocs/ThoughtStack/`
+- **Dropbox**: `~/Dropbox/ThoughtStack/`
+- **OneDrive**: `~/Library/CloudStorage/OneDrive-Personal/ThoughtStack/`
 
-Supported extension point types: `theme`, `editor-toolbar-action`, `sidebar-section`, `note-lifecycle-hook`.
-
-Manage plugins from the Settings panel in the app (⚙ button in the toolbar).
+The search index (`cache.db`) is excluded from sync — each device rebuilds its own. If the cloud provider creates conflict files (e.g., "Note (conflict).md"), the app detects and surfaces them for resolution.
 
 ## Data Export / Import
 
 - Open Settings (⚙) and use the **Export Data** / **Import Data** buttons
-- Export produces a JSON file with all notebooks, notes, tags, and associations
+- Export produces a JSON file with all notebooks, notes (Markdown content + frontmatter), tags, and images (base64-encoded)
 - Import accepts the same JSON format; malformed entries are skipped with error reports
+
+## Plugins
+
+Plugin support is planned for a future release. The `plugins/` directory is reserved for theme plugins, toolbar actions, sidebar sections, and lifecycle hooks.
 
 ## License
 

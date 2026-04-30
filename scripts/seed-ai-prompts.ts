@@ -1,5 +1,5 @@
 /**
- * Seed script: Creates AI Prompt notes in ThoughtRepo.
+ * Seed script: Creates AI Prompt notes in ThoughtStack.
  * Run with: node --experimental-strip-types scripts/seed-ai-prompts.ts
  */
 
