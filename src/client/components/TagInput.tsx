@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { tags as tagsApi, type TagInfo } from '../api/electron-client';
+import { tags as tagsApi, type TagInfo } from '../api';
 
 // ── Types ──────────────────────────────────────────────────────────
 

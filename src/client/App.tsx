@@ -14,7 +14,7 @@ import {
   type SearchResult,
   type NoteSummary,
   type ConflictFile,
-} from './api/electron-client';
+} from './api';
 
 // ── App State ──────────────────────────────────────────────────────
 
@@ -51,9 +51,24 @@ export function App() {
   // ── Check vault on mount ───────────────────────────────────────
 
   useEffect(() => {
-    // Guard: if electronAPI is not available, skip vault check
-    if (!window.electronAPI) {
-      setVaultChecked(true);
+    // In HTTP mode (no electronAPI), the server manages the vault — mark as ready
+    if (typeof window === 'undefined' || !(window as any).electronAPI) {
+      // Try to get vault path from the HTTP server
+      (async () => {
+        try {
+          const path = await systemApi.getVaultPath();
+          if (path) {
+            setVaultPath(path);
+            setVaultReady(true);
+          }
+        } catch (err) {
+          console.error('Failed to check vault path:', err);
+          // In HTTP mode, assume vault is ready (server manages it)
+          setVaultReady(true);
+        } finally {
+          setVaultChecked(true);
+        }
+      })();
       return;
     }
 
@@ -81,7 +96,7 @@ export function App() {
   // ── Detect cloud sync conflicts when vault is ready ────────────
 
   useEffect(() => {
-    if (!vaultReady || !window.electronAPI) return;
+    if (!vaultReady) return;
 
     (async () => {
       try {
@@ -258,7 +273,7 @@ export function App() {
 
   // ── Show VaultPicker if no vault configured ────────────────────
 
-  if (!vaultReady && window.electronAPI) {
+  if (!vaultReady && typeof window !== 'undefined' && (window as any).electronAPI) {
     return <VaultPicker onVaultReady={handleVaultReady} />;
   }
 

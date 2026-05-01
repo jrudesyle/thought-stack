@@ -13,7 +13,7 @@ import { Image } from '@tiptap/extension-image';
 import { Link } from '@tiptap/extension-link';
 import { Placeholder } from '@tiptap/extension-placeholder';
 import { Markdown } from 'tiptap-markdown';
-import { notes as notesApi, images as imagesApi, type NoteData } from '../api/electron-client';
+import { notes as notesApi, images as imagesApi, type NoteData } from '../api';
 import { TagInput } from './TagInput';
 
 // ── Types ──────────────────────────────────────────────────────────
@@ -25,31 +25,51 @@ interface NoteEditorProps {
   onNoteSaved?: () => void;
 }
 
+// ── Environment detection ──────────────────────────────────────────
+
+const isElectronMode = typeof window !== 'undefined' && typeof (window as any).electronAPI !== 'undefined';
+
 // ── Image path helpers ─────────────────────────────────────────────
 
 /**
  * Converts relative image paths in Markdown (e.g., `.images/abc.png`)
- * to vault:// protocol URLs for display in the renderer.
+ * to displayable URLs.
+ *
+ * - Electron mode: uses vault:// protocol URLs
+ * - HTTP mode: uses /api/vault-images/ prefix
  */
 function markdownToVaultUrls(markdown: string, notebook: string): string {
-  // Match Markdown image syntax: ![alt](.images/filename)
+  if (isElectronMode) {
+    return markdown.replace(
+      /!\[([^\]]*)\]\(\.images\/([^)]+)\)/g,
+      (_match, alt, filename) =>
+        `![${alt}](vault://${encodeURIComponent(notebook)}/.images/${filename})`
+    );
+  }
+  // HTTP mode: use the server's image endpoint
   return markdown.replace(
     /!\[([^\]]*)\]\(\.images\/([^)]+)\)/g,
     (_match, alt, filename) =>
-      `![${alt}](vault://${encodeURIComponent(notebook)}/.images/${filename})`
+      `![${alt}](/api/vault-images/${encodeURIComponent(notebook)}/.images/${filename})`
   );
 }
 
 /**
- * Converts vault:// protocol URLs back to relative image paths
- * for storage in the Markdown file.
+ * Converts display URLs back to relative image paths for storage.
+ * Handles both vault:// (Electron) and /api/vault-images/ (HTTP) formats.
  */
 function vaultUrlsToMarkdown(markdown: string): string {
-  // Match vault:// URLs in Markdown image syntax
-  return markdown.replace(
+  // Handle vault:// protocol URLs (Electron mode)
+  let result = markdown.replace(
     /!\[([^\]]*)\]\(vault:\/\/[^/]+\/\.images\/([^)]+)\)/g,
     (_match, alt, filename) => `![${alt}](.images/${filename})`
   );
+  // Handle /api/vault-images/ URLs (HTTP mode)
+  result = result.replace(
+    /!\[([^\]]*)\]\(\/api\/vault-images\/[^/]+\/\.images\/([^)]+)\)/g,
+    (_match, alt, filename) => `![${alt}](.images/${filename})`
+  );
+  return result;
 }
 
 // ── Component ──────────────────────────────────────────────────────
@@ -145,10 +165,15 @@ export function NoteEditor({ notePath, onNoteSaved }: NoteEditorProps) {
       // Read file as ArrayBuffer and save via Electron IPC
       const arrayBuffer = await file.arrayBuffer();
       const result = await imagesApi.save(note.notebook, arrayBuffer, file.type);
-      // Insert using vault:// protocol URL so the renderer can load the local file.
-      // result.path is like ".images/abc123.png", we prepend "vault://notebook/"
-      const vaultUrl = `vault://${encodeURIComponent(note.notebook)}/${result.path}`;
-      editor.chain().focus().setImage({ src: vaultUrl }).run();
+      // Insert using the appropriate URL scheme for the current mode.
+      // result.path is like ".images/abc123.png"
+      let imageUrl: string;
+      if (isElectronMode) {
+        imageUrl = `vault://${encodeURIComponent(note.notebook)}/${result.path}`;
+      } else {
+        imageUrl = `/api/vault-images/${encodeURIComponent(note.notebook)}/${result.path}`;
+      }
+      editor.chain().focus().setImage({ src: imageUrl }).run();
     } catch (err) {
       console.error('Failed to save image:', err);
       // Fallback: embed as base64

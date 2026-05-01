@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import { system } from '../api/electron-client';
-import type { MigrationSummary } from '../api/electron-client';
+import { system } from '../api';
+import type { MigrationSummary } from '../api';
 
 // ── Types ──────────────────────────────────────────────────────────
 

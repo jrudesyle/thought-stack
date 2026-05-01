@@ -6,7 +6,7 @@ import {
   type SearchResult,
   type NotebookInfo,
   type TagInfo,
-} from '../api/electron-client';
+} from '../api';
 
 // ── Types ──────────────────────────────────────────────────────────
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { system, type AppSettings } from '../api/electron-client';
+import { system, type AppSettings } from '../api';
 
 // ── Theme helpers ──────────────────────────────────────────────────
 

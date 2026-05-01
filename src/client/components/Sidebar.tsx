@@ -5,7 +5,7 @@ import {
   notes as notesApi,
   type NotebookInfo,
   type TagInfo,
-} from '../api/electron-client';
+} from '../api';
 
 // ── Types ──────────────────────────────────────────────────────────
 

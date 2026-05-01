@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { notes as notesApi, type NoteSummary } from '../api/electron-client';
+import { notes as notesApi, type NoteSummary } from '../api';
 import { DRAG_TYPE_NOTE } from './Sidebar';
 
 // ── Types ──────────────────────────────────────────────────────────
