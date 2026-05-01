@@ -18,6 +18,7 @@
     "test:unit": "vitest run --project unit",
     "test:property": "vitest run --project property",
     "test:integration": "vitest run --project integration",
+    "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
     "tauri:android:dev": "tauri android dev",
