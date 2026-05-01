@@ -2,7 +2,7 @@
   "name": "ThoughtStack",
   "short_name": "ThoughtStack",
   "description": "A self-hosted note-taking PWA with rich text editing and full data ownership",
-  "start_url": "/",
+  "start_url": "./",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#2563eb",

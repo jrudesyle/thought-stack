@@ -2,9 +2,10 @@
  * API barrel file — auto-detects the runtime environment.
  *
  * Priority:
- *   1. Tauri  — `window.__TAURI_INTERNALS__` is injected by the Tauri runtime
- *   2. Electron — `window.electronAPI` is exposed by the preload script
- *   3. HTTP — plain browser / HTTP server mode (fallback)
+ *   1. Tauri  — window.__TAURI_INTERNALS__ injected by Tauri runtime
+ *   2. Electron — window.electronAPI exposed by preload script
+ *   3. FSA (PWA) — File System Access API available (Chrome/Edge desktop/Android)
+ *   4. HTTP — plain browser / HTTP server mode (fallback)
  */
 
 // Re-export types from electron-client (identical across all clients)
@@ -19,8 +20,12 @@ export type {
   MigrationSummary,
 } from './electron-client';
 
+// Export the isVaultReady helper for the PWA setup screen
+export { isVaultReady } from './fsa-client';
+
 import * as tauriClient from './tauri-client';
 import * as electronClient from './electron-client';
+import * as fsaClient from './fsa-client';
 import * as httpClient from './http-client';
 
 const isTauri =
@@ -31,7 +36,14 @@ const isElectron =
   typeof window !== 'undefined' &&
   typeof (window as any).electronAPI !== 'undefined';
 
-const client = isTauri ? tauriClient : isElectron ? electronClient : httpClient;
+const isFSA =
+  typeof window !== 'undefined' &&
+  typeof (window as any).showDirectoryPicker === 'function';
+
+const client = isTauri ? tauriClient
+  : isElectron ? electronClient
+  : isFSA ? fsaClient
+  : httpClient;
 
 export const notes = client.notes;
 export const notebooks = client.notebooks;

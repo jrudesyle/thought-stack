@@ -6,8 +6,8 @@ export default defineConfig({
   root: __dirname,
   publicDir: 'public',
 
-  // Use relative paths in production so Electron can load files from disk
-  base: process.env.NODE_ENV === 'production' ? './' : '/',
+  // Use relative paths in production so Electron/Tauri/PWA can load files correctly
+  base: process.env.VITE_BASE_URL ?? './',
 
   server: {
     host: 'localhost',
