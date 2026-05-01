@@ -70,6 +70,7 @@ function contextTitle(ctx: NoteListContext): string {
 export function NoteList({ context, selectedNotePath, onSelectNote, onCreateNote, refreshKey }: NoteListProps) {
   const [notesList, setNotesList] = useState<NoteSummary[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchNotes = useCallback(async () => {
     if (context.type === 'search') {
@@ -78,6 +79,7 @@ export function NoteList({ context, selectedNotePath, onSelectNote, onCreateNote
     }
 
     setLoading(true);
+    setError(null);
     try {
       let result: NoteSummary[];
       switch (context.type) {
@@ -99,6 +101,7 @@ export function NoteList({ context, selectedNotePath, onSelectNote, onCreateNote
       setNotesList(result);
     } catch (err) {
       console.error('Failed to fetch notes:', err);
+      setError(err instanceof Error ? err.message : String(err));
       setNotesList([]);
     } finally {
       setLoading(false);
@@ -170,7 +173,13 @@ export function NoteList({ context, selectedNotePath, onSelectNote, onCreateNote
       <div className="note-list-content">
         {loading && <p className="placeholder-text">Loading…</p>}
 
-        {!loading && notesList.length === 0 && (
+        {!loading && error && (
+          <p className="placeholder-text" style={{ color: 'red', fontSize: '0.8em' }}>
+            Error: {error}
+          </p>
+        )}
+
+        {!loading && !error && notesList.length === 0 && (
           <p className="placeholder-text">
             {context.type === 'trash' ? 'Trash is empty' : 'No notes to display'}
           </p>

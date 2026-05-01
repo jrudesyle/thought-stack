@@ -6,7 +6,7 @@
  *   - API data requests: network-first with offline fallback (503 + offline flag)
  */
 
-const CACHE_NAME = 'note-app-v1';
+const CACHE_NAME = 'note-app-v3';
 
 // App shell files to pre-cache on install
 const APP_SHELL = [
@@ -57,7 +57,11 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // App shell / static assets: cache-first with background update
+  // App shell / static assets: network-first for HTML, cache-first for assets
+  if (url.pathname.endsWith('.html') || url.pathname === '/' || url.pathname.endsWith('/')) {
+    event.respondWith(networkFirstStrategy(request));
+    return;
+  }
   event.respondWith(cacheFirstStrategy(request));
 });
 
