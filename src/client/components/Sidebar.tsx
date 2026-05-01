@@ -182,7 +182,7 @@ export function Sidebar({
     try {
       const nb = await notebooksApi.create(name.trim());
       fetchData();
-      onSelectNotebook(nb.name);
+      onSelectNotebook(nb.path);
     } catch (err) {
       console.error('Failed to create notebook:', err);
     }
@@ -335,9 +335,9 @@ export function Sidebar({
                     <button
                       key={nb.path}
                       className={`sidebar-item sidebar-notebook sidebar-notebook--nested ${
-                        activeView === 'notebook' && selectedNotebookName === nb.name ? 'sidebar-item--active' : ''
+                        activeView === 'notebook' && selectedNotebookName === nb.path ? 'sidebar-item--active' : ''
                       } ${dropTargetName === nb.name ? 'sidebar-item--drop-target' : ''}`}
-                      onClick={() => onSelectNotebook(nb.name)}
+                      onClick={() => onSelectNotebook(nb.path)}
                       onContextMenu={(e) => handleContextMenu(e, 'notebook', nb.name, nb.path)}
                       draggable
                       onDragStart={(e) => handleNotebookDragStart(e, nb.name)}
@@ -357,9 +357,9 @@ export function Sidebar({
                 <button
                   key={nb.path}
                   className={`sidebar-item sidebar-notebook ${
-                    activeView === 'notebook' && selectedNotebookName === nb.name ? 'sidebar-item--active' : ''
+                    activeView === 'notebook' && selectedNotebookName === nb.path ? 'sidebar-item--active' : ''
                   } ${dropTargetName === nb.name ? 'sidebar-item--drop-target' : ''}`}
-                  onClick={() => onSelectNotebook(nb.name)}
+                  onClick={() => onSelectNotebook(nb.path)}
                   onContextMenu={(e) => handleContextMenu(e, 'notebook', nb.name, nb.path)}
                   draggable
                   onDragStart={(e) => handleNotebookDragStart(e, nb.name)}

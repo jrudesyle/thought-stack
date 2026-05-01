@@ -316,6 +316,16 @@ export const notes = {
       } catch {
         return [];
       }
+    } else if (params?.notebook) {
+      // Navigate directly to the notebook directory — faster and avoids scanning everything
+      try {
+        const nbDir = await getDirHandle(root, params.notebook);
+        const filenames = await collectMdFiles(nbDir, '', false);
+        paths = filenames.map((f) => `${params.notebook}/${f}`);
+      } catch (err) {
+        console.error('[FSA] notes.list: failed to open notebook dir', params.notebook, err);
+        return [];
+      }
     } else {
       paths = await collectMdFiles(root, '');
     }
@@ -329,7 +339,6 @@ export const notes = {
         const filename = parts[parts.length - 1];
         const notebook = parts.slice(0, -1).join('/');
 
-        if (params?.notebook && notebook !== params.notebook) continue;
         if (params?.tag && !parsed.tags.includes(params.tag)) continue;
 
         summaries.push({
@@ -342,8 +351,8 @@ export const notes = {
           modified: parsed.modified,
           snippet: makeSnippet(parsed.content),
         });
-      } catch {
-        // skip unreadable files
+      } catch (err) {
+        console.error('[FSA] notes.list: skipping unreadable file', relPath, err);
       }
     }
 
