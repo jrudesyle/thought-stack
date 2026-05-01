@@ -3,7 +3,7 @@ import { system, type AppSettings } from '../api';
 
 // ── Theme helpers ──────────────────────────────────────────────────
 
-export type ThemePreference = 'system' | 'light' | 'dark';
+export type ThemePreference = 'system' | 'light' | 'dark' | 'evernote';
 
 /**
  * Apply a theme to the document. When 'system' is selected, remove the
@@ -15,8 +15,7 @@ export function applyTheme(preference: ThemePreference): void {
     document.documentElement.removeAttribute('data-theme');
   } else {
     document.documentElement.setAttribute('data-theme', preference);
-  }
-}
+  }}
 
 /**
  * Load the persisted theme preference from the Electron settings API.
@@ -198,13 +197,13 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
           <div className="settings-section">
             <h3>Theme</h3>
             <div className="settings-theme-options">
-              {(['system', 'light', 'dark'] as ThemePreference[]).map((t) => (
+              {(['system', 'light', 'dark', 'evernote'] as ThemePreference[]).map((t) => (
                 <button
                   key={t}
                   className={`settings-theme-btn ${theme === t ? 'settings-theme-btn--active' : ''}`}
                   onClick={() => handleThemeChange(t)}
                 >
-                  {t === 'system' ? '🖥 System' : t === 'light' ? '☀ Light' : '🌙 Dark'}
+                  {t === 'system' ? '🖥 System' : t === 'light' ? '☀ Light' : t === 'dark' ? '🌙 Dark' : '🐘 Evernote'}
                 </button>
               ))}
             </div>

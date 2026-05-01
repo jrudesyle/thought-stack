@@ -71,6 +71,22 @@ export function NoteList({ context, selectedNotePath, onSelectNote, onCreateNote
   const [notesList, setNotesList] = useState<NoteSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; notePath: string } | null>(null);
+
+  // Close context menu on outside click or Escape
+  useEffect(() => {
+    if (!contextMenu) return;
+    const close = () => setContextMenu(null);
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
+    window.addEventListener('mousedown', close);
+    window.addEventListener('keydown', onKey);
+    return () => { window.removeEventListener('mousedown', close); window.removeEventListener('keydown', onKey); };
+  }, [contextMenu]);
+
+  const handleContextMenu = (e: React.MouseEvent, notePath: string) => {
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY, notePath });
+  };
 
   const fetchNotes = useCallback(async () => {
     if (context.type === 'search') {
@@ -120,6 +136,16 @@ export function NoteList({ context, selectedNotePath, onSelectNote, onCreateNote
   };
 
   // ── Trash actions ──────────────────────────────────────────────
+
+  const handleMoveToTrash = async (notePath: string) => {
+    setContextMenu(null);
+    try {
+      await notesApi.delete(notePath);
+      fetchNotes();
+    } catch (err) {
+      console.error('Failed to move note to trash:', err);
+    }
+  };
 
   const handleRestore = async (e: React.MouseEvent, notePath: string) => {
     e.stopPropagation();
@@ -190,6 +216,7 @@ export function NoteList({ context, selectedNotePath, onSelectNote, onCreateNote
             key={note.path || note.id}
             className={`note-list-item ${selectedNotePath === note.path ? 'note-list-item--selected' : ''}`}
             onClick={() => onSelectNote(note.path)}
+            onContextMenu={(e) => context.type !== 'trash' ? handleContextMenu(e, note.path) : undefined}
             draggable={context.type !== 'trash'}
             onDragStart={(e) => handleDragStart(e, note.path)}
             role="button"
@@ -228,6 +255,20 @@ export function NoteList({ context, selectedNotePath, onSelectNote, onCreateNote
           </div>
         ))}
       </div>
+
+      {/* Right-click context menu */}
+      {contextMenu && (
+        <div
+          className="note-context-menu"
+          style={{ top: contextMenu.y, left: contextMenu.x }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <button className="note-context-menu-item note-context-menu-item--danger"
+            onClick={() => handleMoveToTrash(contextMenu.notePath)}>
+            🗑 Move to Trash
+          </button>
+        </div>
+      )}
     </section>
   );
 }
