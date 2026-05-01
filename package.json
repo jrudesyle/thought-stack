@@ -17,10 +17,15 @@
     "test": "vitest run",
     "test:unit": "vitest run --project unit",
     "test:property": "vitest run --project property",
-    "test:integration": "vitest run --project integration"
+    "test:integration": "vitest run --project integration",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
+    "tauri:android:dev": "tauri android dev",
+    "tauri:android:build": "tauri android build"
   },
   "devDependencies": {
     "@electron/rebuild": "^3.7.1",
+    "@tauri-apps/cli": "^2.11.0",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^25.6.0",
     "@types/uuid": "^10.0.0",
