@@ -7,7 +7,6 @@
  *
  * No server required — all reads/writes go directly to the local filesystem.
  */
-import matter from 'gray-matter';
 
 // ── Types (identical to electron-client.ts) ───────────────────────────────
 
@@ -238,18 +237,57 @@ async function collectMdFiles(
   return results;
 }
 
-// ── Frontmatter helpers ───────────────────────────────────────────────────
+// ── Frontmatter helpers (browser-safe, no gray-matter/Buffer) ────────────
+
+const FM_DELIM = /^---\r?\n/;
 
 function parseNote(fileContent: string) {
-  const parsed = matter(fileContent);
-  return {
-    id: (parsed.data.id as string) || '',
-    tags: Array.isArray(parsed.data.tags) ? (parsed.data.tags as string[]) : [],
-    created: (parsed.data.created as string) || '',
-    modified: (parsed.data.modified as string) || '',
-    content: parsed.content,
-    extra: parsed.data,
-  };
+  // Split on opening and closing --- delimiters
+  const parts = fileContent.split(/^---\r?\n/m);
+  // Structure: ["", yamlBlock, content] when frontmatter present
+  if (parts.length >= 3 && fileContent.startsWith('---')) {
+    const yaml = parts[1];
+    const content = parts.slice(2).join('---\n').trim();
+    return { ...parseYamlFrontmatter(yaml), content };
+  }
+  // No frontmatter
+  return { id: '', tags: [] as string[], created: '', modified: '', content: fileContent };
+}
+
+function parseYamlFrontmatter(yaml: string) {
+  const lines = yaml.split('\n');
+  let id = '';
+  let created = '';
+  let modified = '';
+  const tags: string[] = [];
+  let inTags = false;
+
+  for (const raw of lines) {
+    const line = raw.replace(/\r$/, '');
+    // Tags block: list items
+    if (inTags) {
+      const tagMatch = line.match(/^\s+-\s+(.+)/);
+      if (tagMatch) { tags.push(tagMatch[1].trim()); continue; }
+      inTags = false;
+    }
+    const kv = line.match(/^(\w+):\s*(.*)/);
+    if (!kv) continue;
+    const [, key, val] = kv;
+    const v = val.trim().replace(/^['"]|['"]$/g, '');
+    if (key === 'id') id = v;
+    else if (key === 'created') created = v;
+    else if (key === 'modified') modified = v;
+    else if (key === 'tags') {
+      // Could be inline [tag1, tag2] or start of list
+      const inline = val.trim().match(/^\[(.+)\]/);
+      if (inline) {
+        tags.push(...inline[1].split(',').map(t => t.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean));
+      } else {
+        inTags = true;
+      }
+    }
+  }
+  return { id, tags, created, modified };
 }
 
 function serializeNote(
@@ -259,8 +297,15 @@ function serializeNote(
   modified: string,
   content: string,
 ): string {
-  return matter.stringify(content || '', { id, tags, created, modified });
+  const tagsYaml = tags.length > 0
+    ? `tags:\n${tags.map(t => `  - ${t}`).join('\n')}\n`
+    : 'tags: []\n';
+  const fm = `---\nid: ${id}\n${tagsYaml}created: '${created}'\nmodified: '${modified}'\n---\n`;
+  return content ? `${fm}${content}\n` : fm;
 }
+
+// Keep FM_DELIM used only for splitting guard
+void FM_DELIM;
 
 function titleFromFilename(filename: string): string {
   return filename.endsWith('.md') ? filename.slice(0, -3) : filename;
