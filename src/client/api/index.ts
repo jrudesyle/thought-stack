@@ -21,7 +21,7 @@ export type {
 } from './electron-client';
 
 // Export the isVaultReady helper for the PWA setup screen
-export { isVaultReady } from './fsa-client';
+export { isVaultReady, hasStoredVault, reconnectVault } from './fsa-client';
 
 import * as tauriClient from './tauri-client';
 import * as electronClient from './electron-client';

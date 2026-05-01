@@ -123,20 +123,34 @@ async function getVaultHandle(): Promise<FileSystemDirectoryHandle | null> {
   const stored = await idbGet<FileSystemDirectoryHandle>(HANDLE_KEY);
   if (!stored) return null;
 
-  // Re-request permission if needed
+  // Check permission without requesting — requestPermission needs a user gesture
   const perm = await stored.queryPermission({ mode: 'readwrite' });
   if (perm === 'granted') {
     _vaultHandle = stored;
     return stored;
   }
-  if (perm === 'prompt') {
+  // 'prompt' or 'denied' — caller must use reconnectVault() via a user gesture
+  return null;
+}
+
+/** Returns true if a vault handle is stored in IDB, even if permission needs re-granting. */
+export async function hasStoredVault(): Promise<boolean> {
+  const stored = await idbGet<FileSystemDirectoryHandle>(HANDLE_KEY);
+  return stored !== null;
+}
+
+/** Re-requests permission on a stored handle. MUST be called from a user gesture (click). */
+export async function reconnectVault(): Promise<boolean> {
+  const stored = await idbGet<FileSystemDirectoryHandle>(HANDLE_KEY);
+  if (!stored) return false;
+  try {
     const granted = await stored.requestPermission({ mode: 'readwrite' });
     if (granted === 'granted') {
       _vaultHandle = stored;
-      return stored;
+      return true;
     }
-  }
-  return null;
+  } catch {}
+  return false;
 }
 
 async function requireVault(): Promise<FileSystemDirectoryHandle> {

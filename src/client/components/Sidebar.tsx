@@ -21,6 +21,7 @@ interface SidebarProps {
   onSelectTag: (tagName: string) => void;
   onToggleCollapse: () => void;
   onDataChange?: () => void;
+  className?: string;
 }
 
 interface StackGroup {
@@ -53,6 +54,7 @@ export function Sidebar({
   onSelectTag,
   onToggleCollapse,
   onDataChange,
+  className = '',
 }: SidebarProps) {
   const [allNotebooks, setAllNotebooks] = useState<NotebookInfo[]>([]);
   const [allTags, setAllTags] = useState<TagInfo[]>([]);
@@ -281,10 +283,10 @@ export function Sidebar({
     });
   };
 
-  if (collapsed) return null;
+  if (collapsed && !className) return null;
 
   return (
-    <aside className="sidebar" role="navigation" aria-label="Sidebar navigation">
+    <aside className={`sidebar${className ? ' ' + className : ''}`} role="navigation" aria-label="Sidebar navigation">
       <nav className="sidebar-nav">
         {/* All Notes */}
         <button

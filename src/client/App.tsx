@@ -12,6 +12,8 @@ import {
   system as systemApi,
   conflicts as conflictsApi,
   isVaultReady,
+  hasStoredVault,
+  reconnectVault,
   type SearchResult,
   type NoteSummary,
   type ConflictFile,
@@ -26,6 +28,8 @@ export function App() {
   const [vaultReady, setVaultReady] = useState(false);
   const [vaultPath, setVaultPath] = useState('');
   const [vaultChecked, setVaultChecked] = useState(false);
+  const [needsUnlock, setNeedsUnlock] = useState(false);
+  const [unlocking, setUnlocking] = useState(false);
 
   const [activeView, setActiveView] = useState<AppView>('all-notes');
   const [selectedNotebookName, setSelectedNotebookName] = useState<string | null>(null);
@@ -38,6 +42,7 @@ export function App() {
       return false;
     }
   });
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [searchResults, setSearchResults] = useState<NoteSummary[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [previousView, setPreviousView] = useState<AppView>('all-notes');
@@ -54,7 +59,6 @@ export function App() {
   useEffect(() => {
     (async () => {
       try {
-        // FSA mode: check IndexedDB for a stored vault handle
         const isFSA = typeof window !== 'undefined' && typeof (window as any).showDirectoryPicker === 'function';
         const isTauri = typeof window !== 'undefined' && typeof (window as any).__TAURI_INTERNALS__ !== 'undefined';
         const isElectron = typeof window !== 'undefined' && typeof (window as any).electronAPI !== 'undefined';
@@ -65,20 +69,20 @@ export function App() {
             const path = await systemApi.getVaultPath();
             setVaultPath(path);
             setVaultReady(true);
+          } else {
+            // Check if there's a stored handle that just needs permission re-grant
+            const stored = await hasStoredVault();
+            if (stored) setNeedsUnlock(true);
+            // else: no vault at all → show VaultPicker
           }
-          // If not ready, leave vaultReady=false → show VaultPicker
           return;
         }
 
         // Tauri or Electron mode
         const path = await systemApi.getVaultPath();
-        if (path) {
-          setVaultPath(path);
-          setVaultReady(true);
-        }
+        if (path) { setVaultPath(path); setVaultReady(true); }
       } catch (err) {
         console.error('Failed to check vault path:', err);
-        // HTTP server mode — vault is managed server-side
         const isElectron = typeof window !== 'undefined' && typeof (window as any).electronAPI !== 'undefined';
         if (!isElectron) setVaultReady(true);
       } finally {
@@ -157,7 +161,7 @@ export function App() {
     setSelectedNotePath(null);
   }, []);
 
-  const handleSelectNote = useCallback((notePath: string) => {
+  const handleSelectNote = useCallback((notePath: string | null) => {
     setSelectedNotePath(notePath);
   }, []);
 
@@ -276,6 +280,42 @@ export function App() {
   if (!vaultReady) {
     const isFSA = typeof window !== 'undefined' && typeof (window as any).showDirectoryPicker === 'function';
     const isElectron = typeof window !== 'undefined' && typeof (window as any).electronAPI !== 'undefined';
+
+    // Stored vault exists but needs permission re-grant (e.g. after page refresh)
+    if (isFSA && needsUnlock) {
+      return (
+        <div className="vault-picker-overlay">
+          <div className="vault-picker-panel">
+            <div className="vault-picker-logo">🔒</div>
+            <h1 className="vault-picker-title">ThoughtStack</h1>
+            <p className="vault-picker-subtitle">Tap below to reconnect to your vault.</p>
+            <div className="vault-picker-actions">
+              <button
+                className="vault-picker-btn vault-picker-btn--primary"
+                disabled={unlocking}
+                onClick={async () => {
+                  setUnlocking(true);
+                  const ok = await reconnectVault();
+                  if (ok) {
+                    const path = await systemApi.getVaultPath();
+                    setVaultPath(path);
+                    setVaultReady(true);
+                    setNeedsUnlock(false);
+                  } else {
+                    setNeedsUnlock(false); // fall through to full picker
+                  }
+                  setUnlocking(false);
+                }}
+              >
+                {unlocking ? 'Unlocking…' : '🔓 Unlock Vault'}
+              </button>
+            </div>
+            <p className="vault-picker-hint">Your vault folder is remembered — just tap to re-grant access.</p>
+          </div>
+        </div>
+      );
+    }
+
     if (isFSA || isElectron) {
       return <VaultPicker onVaultReady={handleVaultReady} />;
     }
@@ -287,7 +327,14 @@ export function App() {
       <header className="toolbar">
         <button
           className="toolbar-btn sidebar-toggle"
-          onClick={toggleSidebar}
+          onClick={() => {
+            // On mobile: toggle overlay; on desktop: collapse sidebar
+            if (window.innerWidth <= 768) {
+              setMobileSidebarOpen(o => !o);
+            } else {
+              toggleSidebar();
+            }
+          }}
           aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           ☰
@@ -330,18 +377,28 @@ export function App() {
 
       {/* Main content area */}
       <div className="main-content">
+        {/* Mobile sidebar backdrop */}
+        {mobileSidebarOpen && (
+          <div
+            className="sidebar-backdrop"
+            onClick={() => setMobileSidebarOpen(false)}
+            style={{ position: 'fixed', inset: 0, zIndex: 199, background: 'rgba(0,0,0,0.4)' }}
+          />
+        )}
+
         {/* Sidebar */}
-        {!sidebarCollapsed && (
+        {(!sidebarCollapsed || mobileSidebarOpen) && (
           <Sidebar
             activeView={activeView === 'search' ? 'all-notes' : activeView as SidebarView}
             selectedNotebookName={selectedNotebookName}
             selectedTagName={selectedTagName}
             collapsed={sidebarCollapsed}
-            onSelectView={handleSelectView}
-            onSelectNotebook={handleSelectNotebook}
-            onSelectTag={handleSelectTag}
+            onSelectView={(v) => { handleSelectView(v); setMobileSidebarOpen(false); }}
+            onSelectNotebook={(n) => { handleSelectNotebook(n); setMobileSidebarOpen(false); }}
+            onSelectTag={(t) => { handleSelectTag(t); setMobileSidebarOpen(false); }}
             onToggleCollapse={toggleSidebar}
             onDataChange={dataChangeKey as any}
+            className={mobileSidebarOpen ? 'sidebar--mobile-open' : ''}
           />
         )}
 
@@ -349,16 +406,27 @@ export function App() {
         <NoteList
           context={noteListContext}
           selectedNotePath={selectedNotePath}
-          onSelectNote={handleSelectNote}
+          onSelectNote={(p) => { handleSelectNote(p); }}
           onCreateNote={handleCreateNote}
           refreshKey={refreshKey}
         />
 
-        {/* Editor */}
-        <NoteEditor
-          notePath={selectedNotePath}
-          onNoteSaved={handleNoteSaved}
-        />
+        {/* Editor wrapper — slides over note list on mobile when a note is open */}
+        <div className={`editor-pane${selectedNotePath ? ' editor-pane--mobile-open' : ''}`}>
+          {selectedNotePath && (
+            <button
+              className="editor-back-btn mobile-only"
+              onClick={() => handleSelectNote(null)}
+              aria-label="Back to notes"
+            >
+              ← Notes
+            </button>
+          )}
+          <NoteEditor
+            notePath={selectedNotePath}
+            onNoteSaved={handleNoteSaved}
+          />
+        </div>
       </div>
 
       {/* Status Bar */}
