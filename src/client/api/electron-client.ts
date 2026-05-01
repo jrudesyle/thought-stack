@@ -138,7 +138,17 @@ declare global {
 
 // ── API access ─────────────────────────────────────────────────────
 
-const api = window.electronAPI;
+// Lazy access — only evaluated when a method is actually called.
+// This prevents crashes when the barrel imports this module in browser mode
+// where window.electronAPI is undefined.
+function getApi() {
+  return window.electronAPI;
+}
+const api = new Proxy({} as Window['electronAPI'], {
+  get(_target, prop) {
+    return getApi()[prop as keyof Window['electronAPI']];
+  },
+});
 
 // ── Notes API ──────────────────────────────────────────────────────
 

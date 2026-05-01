@@ -17,6 +17,12 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:3000',
         changeOrigin: true,
+        // Don't proxy module requests (Vite HMR) — only actual API calls
+        bypass(req) {
+          if (req.url && (req.url.includes('.ts') || req.url.includes('.tsx') || req.url.includes('.js'))) {
+            return req.url;
+          }
+        },
       },
     },
   },
