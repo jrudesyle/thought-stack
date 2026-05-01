@@ -11,6 +11,7 @@ import {
   notes as notesApi,
   system as systemApi,
   conflicts as conflictsApi,
+  isVaultReady,
   type SearchResult,
   type NoteSummary,
   type ConflictFile,
@@ -51,29 +52,25 @@ export function App() {
   // ── Check vault on mount ───────────────────────────────────────
 
   useEffect(() => {
-    // In HTTP mode (no electronAPI), the server manages the vault — mark as ready
-    if (typeof window === 'undefined' || !(window as any).electronAPI) {
-      // Try to get vault path from the HTTP server
-      (async () => {
-        try {
-          const path = await systemApi.getVaultPath();
-          if (path) {
+    (async () => {
+      try {
+        // FSA mode: check IndexedDB for a stored vault handle
+        const isFSA = typeof window !== 'undefined' && typeof (window as any).showDirectoryPicker === 'function';
+        const isTauri = typeof window !== 'undefined' && typeof (window as any).__TAURI_INTERNALS__ !== 'undefined';
+        const isElectron = typeof window !== 'undefined' && typeof (window as any).electronAPI !== 'undefined';
+
+        if (isFSA && !isTauri && !isElectron) {
+          const ready = await isVaultReady();
+          if (ready) {
+            const path = await systemApi.getVaultPath();
             setVaultPath(path);
             setVaultReady(true);
           }
-        } catch (err) {
-          console.error('Failed to check vault path:', err);
-          // In HTTP mode, assume vault is ready (server manages it)
-          setVaultReady(true);
-        } finally {
-          setVaultChecked(true);
+          // If not ready, leave vaultReady=false → show VaultPicker
+          return;
         }
-      })();
-      return;
-    }
 
-    (async () => {
-      try {
+        // Tauri or Electron mode
         const path = await systemApi.getVaultPath();
         if (path) {
           setVaultPath(path);
@@ -81,6 +78,9 @@ export function App() {
         }
       } catch (err) {
         console.error('Failed to check vault path:', err);
+        // HTTP server mode — vault is managed server-side
+        const isElectron = typeof window !== 'undefined' && typeof (window as any).electronAPI !== 'undefined';
+        if (!isElectron) setVaultReady(true);
       } finally {
         setVaultChecked(true);
       }
@@ -273,8 +273,12 @@ export function App() {
 
   // ── Show VaultPicker if no vault configured ────────────────────
 
-  if (!vaultReady && typeof window !== 'undefined' && (window as any).electronAPI) {
-    return <VaultPicker onVaultReady={handleVaultReady} />;
+  if (!vaultReady) {
+    const isFSA = typeof window !== 'undefined' && typeof (window as any).showDirectoryPicker === 'function';
+    const isElectron = typeof window !== 'undefined' && typeof (window as any).electronAPI !== 'undefined';
+    if (isFSA || isElectron) {
+      return <VaultPicker onVaultReady={handleVaultReady} />;
+    }
   }
 
   return (
