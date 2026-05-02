@@ -72,6 +72,7 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
   const [showKey, setShowKey] = useState(false);
   const [aiEndpointUrl, setAiEndpointUrl] = useState('');
   const [aiModel, setAiModel] = useState('');
+  const [testStatus, setTestStatus] = useState<{ text: string; type: 'success' | 'error' | 'testing' } | null>(null);
 
   // Load current settings when panel opens
   useEffect(() => {
@@ -108,6 +109,58 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
       saveAIConfig({ provider: aiProvider, apiKey: aiKey.trim() });
     }
     setAiKeySaved(true);
+    setTestStatus(null);
+  };
+
+  const handleTestConnection = async () => {
+    const url = aiEndpointUrl.trim();
+    if (!url) { setTestStatus({ text: 'Enter an endpoint URL first.', type: 'error' }); return; }
+    setTestStatus({ text: 'Testing…', type: 'testing' });
+
+    const base = url.replace(/\/+$/, '').replace(/\/chat\/completions$/, '');
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (aiKey.trim()) headers['Authorization'] = `Bearer ${aiKey.trim()}`;
+
+    // Try GET /models first (lightweight), fall back to a minimal chat completion
+    try {
+      const modelsRes = await fetch(`${base}/models`, { headers, signal: AbortSignal.timeout(6000) });
+      if (modelsRes.ok) {
+        const data = await modelsRes.json().catch(() => ({}));
+        const count = (data as any)?.data?.length;
+        setTestStatus({ text: `✓ Connected${count ? ` — ${count} model(s) available` : ''}`, type: 'success' });
+        return;
+      }
+    } catch {}
+
+    // Fall back to minimal chat completion
+    try {
+      const chatRes = await fetch(`${base}/chat/completions`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          model: aiModel.trim() || 'manifest/auto',
+          messages: [{ role: 'user', content: 'ping' }],
+          max_tokens: 1,
+          stream: false,
+        }),
+        signal: AbortSignal.timeout(10000),
+      });
+      if (chatRes.ok) {
+        setTestStatus({ text: '✓ Connected — endpoint is reachable', type: 'success' });
+      } else {
+        const err = await chatRes.json().catch(() => ({}));
+        const msg = (err as any)?.error?.message ?? `HTTP ${chatRes.status}`;
+        setTestStatus({ text: `✗ ${msg}`, type: 'error' });
+      }
+    } catch (e: any) {
+      const isBlocked = e?.message?.includes('Failed to fetch') || e?.name === 'TypeError';
+      setTestStatus({
+        text: isBlocked
+          ? '✗ Blocked — browser cannot reach HTTP from HTTPS. See hint below.'
+          : `✗ ${e?.message ?? 'Connection failed'}`,
+        type: 'error',
+      });
+    }
   };
 
   // ── Theme selection ──────────────────────────────────────────────
@@ -335,12 +388,31 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
                 <button className="settings-btn settings-btn--primary" onClick={handleSaveAI}>
                   {aiKeySaved ? '✓ Saved' : 'Save Key'}
                 </button>
+                {aiProvider === 'openclaw' && (
+                  <button
+                    className="settings-btn"
+                    onClick={handleTestConnection}
+                    disabled={testStatus?.type === 'testing'}
+                  >
+                    {testStatus?.type === 'testing' ? '⏳ Testing…' : '🔌 Test Connection'}
+                  </button>
+                )}
                 {aiKeySaved && (
-                  <button className="settings-btn" onClick={() => { clearAIConfig(); setAiKey(''); setAiEndpointUrl(''); setAiModel(''); setAiKeySaved(false); }}>
+                  <button className="settings-btn" onClick={() => { clearAIConfig(); setAiKey(''); setAiEndpointUrl(''); setAiModel(''); setAiKeySaved(false); setTestStatus(null); }}>
                     Remove
                   </button>
                 )}
               </div>
+              {testStatus && testStatus.type !== 'testing' && (
+                <div className={`settings-status settings-status--${testStatus.type === 'success' ? 'success' : 'error'}`} style={{ marginTop: 8 }}>
+                  {testStatus.text}
+                  {testStatus.type === 'error' && testStatus.text.includes('HTTPS') && (
+                    <p style={{ marginTop: 4, fontSize: '0.78rem', opacity: 0.85 }}>
+                      Fix: open <code>chrome://flags/#unsafely-treat-insecure-origin-as-secure</code>, add your gateway URL, relaunch Chrome.
+                    </p>
+                  )}
+                </div>
+              )}
               <p className="settings-hint">Your key is stored locally only — never sent anywhere except the AI provider.</p>
             </div>
           </div>
