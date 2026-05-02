@@ -2405,3 +2405,235 @@ select:focus-visible {
     transform: translateX(0);
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   Extra Themes
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Ocean Theme ───────────────────────────────────────────────── */
+[data-theme="ocean"] {
+  --color-bg: #f0f7ff;
+  --color-surface: #e3f0fb;
+  --color-surface-raised: #edf5fc;
+  --color-surface-sunken: #d6e9f8;
+  --color-border: #b8d8ef;
+  --color-border-subtle: #cce4f4;
+  --color-text: #0d2b45;
+  --color-text-secondary: #2e6090;
+  --color-text-tertiary: #5b8db5;
+  --color-primary: #0077cc;
+  --color-primary-hover: #005fa3;
+  --color-primary-subtle: rgba(0,119,204,0.1);
+  --color-sidebar-bg: linear-gradient(180deg, #0b4a7a 0%, #0a3d68 100%);
+  --color-sidebar-bg-flat: #0b4a7a;
+  --color-sidebar-text: #e0f0ff;
+  --color-sidebar-text-secondary: #7ab8e0;
+  --color-sidebar-active: rgba(255,255,255,0.15);
+  --color-sidebar-active-text: #ffffff;
+  --color-sidebar-hover: rgba(255,255,255,0.06);
+  --color-toolbar-bg: rgba(240,247,255,0.92);
+  --color-toolbar-border: rgba(0,80,160,0.12);
+  --color-statusbar-bg: #e3f0fb;
+  --color-statusbar-text: #5b8db5;
+  --color-danger: #e05252;
+  --color-danger-hover: #c04040;
+  --color-danger-subtle: rgba(224,82,82,0.1);
+  --color-success: #2ecc71;
+  --color-success-subtle: rgba(46,204,113,0.1);
+  --color-warning: #f39c12;
+  --color-highlight: rgba(0,119,204,0.12);
+  --color-note-selected: rgba(0,119,204,0.08);
+  --color-note-selected-border: #0077cc;
+  --color-note-hover: rgba(0,80,160,0.04);
+}
+
+/* ── Warm Paper Theme ──────────────────────────────────────────── */
+[data-theme="warm-paper"] {
+  --color-bg: #fdf6e3;
+  --color-surface: #f5edd6;
+  --color-surface-raised: #faf2e0;
+  --color-surface-sunken: #ede4cd;
+  --color-border: #d9cba8;
+  --color-border-subtle: #e8dfc0;
+  --color-text: #2c1d0e;
+  --color-text-secondary: #6b4c2a;
+  --color-text-tertiary: #9c7a52;
+  --color-primary: #b5531a;
+  --color-primary-hover: #943f10;
+  --color-primary-subtle: rgba(181,83,26,0.1);
+  --color-sidebar-bg: linear-gradient(180deg, #3d2b1f 0%, #2e1f14 100%);
+  --color-sidebar-bg-flat: #3d2b1f;
+  --color-sidebar-text: #f5edd6;
+  --color-sidebar-text-secondary: #b89a78;
+  --color-sidebar-active: rgba(255,200,130,0.15);
+  --color-sidebar-active-text: #ffd29a;
+  --color-sidebar-hover: rgba(255,255,255,0.05);
+  --color-toolbar-bg: rgba(253,246,227,0.92);
+  --color-toolbar-border: rgba(120,80,30,0.12);
+  --color-statusbar-bg: #f5edd6;
+  --color-statusbar-text: #9c7a52;
+  --color-danger: #c0392b;
+  --color-danger-hover: #a93226;
+  --color-danger-subtle: rgba(192,57,43,0.1);
+  --color-success: #27ae60;
+  --color-success-subtle: rgba(39,174,96,0.1);
+  --color-warning: #e67e22;
+  --color-highlight: rgba(181,83,26,0.12);
+  --color-note-selected: rgba(181,83,26,0.08);
+  --color-note-selected-border: #b5531a;
+  --color-note-hover: rgba(120,80,30,0.04);
+}
+
+/* ── Night Owl Theme ───────────────────────────────────────────── */
+[data-theme="night-owl"] {
+  --color-bg: #011627;
+  --color-surface: #061e36;
+  --color-surface-raised: #0b2540;
+  --color-surface-sunken: #01111f;
+  --color-border: #1d3f5e;
+  --color-border-subtle: #132d4a;
+  --color-text: #d6deeb;
+  --color-text-secondary: #7fdbca;
+  --color-text-tertiary: #4c8fac;
+  --color-primary: #82aaff;
+  --color-primary-hover: #5f8de8;
+  --color-primary-subtle: rgba(130,170,255,0.12);
+  --color-sidebar-bg: linear-gradient(180deg, #001122 0%, #010e1a 100%);
+  --color-sidebar-bg-flat: #001122;
+  --color-sidebar-text: #d6deeb;
+  --color-sidebar-text-secondary: #4c8fac;
+  --color-sidebar-active: rgba(130,170,255,0.15);
+  --color-sidebar-active-text: #82aaff;
+  --color-sidebar-hover: rgba(255,255,255,0.04);
+  --color-toolbar-bg: rgba(1,22,39,0.9);
+  --color-toolbar-border: rgba(130,170,255,0.1);
+  --color-statusbar-bg: #011627;
+  --color-statusbar-text: #4c8fac;
+  --color-danger: #ff6b6b;
+  --color-danger-hover: #ff4d4d;
+  --color-danger-subtle: rgba(255,107,107,0.12);
+  --color-success: #22da6e;
+  --color-success-subtle: rgba(34,218,110,0.12);
+  --color-warning: #ffca28;
+  --color-highlight: rgba(130,170,255,0.15);
+  --color-note-selected: rgba(130,170,255,0.1);
+  --color-note-selected-border: #82aaff;
+  --color-note-hover: rgba(255,255,255,0.02);
+  --shadow-xs: 0 1px 2px rgba(0,0,0,0.4);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.5), 0 1px 2px rgba(0,0,0,0.4);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.6), 0 1px 3px rgba(0,0,0,0.4);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,0.7), 0 4px 12px rgba(0,0,0,0.5);
+  --shadow-xl: 0 20px 60px rgba(0,0,0,0.8), 0 8px 20px rgba(0,0,0,0.6);
+}
+
+/* ── Notion Theme ──────────────────────────────────────────────── */
+[data-theme="notion"] {
+  --color-bg: #ffffff;
+  --color-surface: #f7f6f3;
+  --color-surface-raised: #fbfaf9;
+  --color-surface-sunken: #f0efec;
+  --color-border: #e3e2df;
+  --color-border-subtle: #edece9;
+  --color-text: #37352f;
+  --color-text-secondary: #6b6460;
+  --color-text-tertiary: #9b9490;
+  --color-primary: #2eaadc;
+  --color-primary-hover: #1a8fc2;
+  --color-primary-subtle: rgba(46,170,220,0.1);
+  --color-sidebar-bg: linear-gradient(180deg, #f7f6f3 0%, #f2f1ee 100%);
+  --color-sidebar-bg-flat: #f7f6f3;
+  --color-sidebar-text: #37352f;
+  --color-sidebar-text-secondary: #9b9490;
+  --color-sidebar-active: rgba(46,170,220,0.1);
+  --color-sidebar-active-text: #1a8fc2;
+  --color-sidebar-hover: rgba(0,0,0,0.04);
+  --color-toolbar-bg: rgba(255,255,255,0.95);
+  --color-toolbar-border: rgba(0,0,0,0.06);
+  --color-statusbar-bg: #f7f6f3;
+  --color-statusbar-text: #9b9490;
+  --color-danger: #e03e3e;
+  --color-danger-hover: #c02828;
+  --color-danger-subtle: rgba(224,62,62,0.1);
+  --color-success: #0f7b6c;
+  --color-success-subtle: rgba(15,123,108,0.1);
+  --color-warning: #dfab01;
+  --color-highlight: rgba(46,170,220,0.1);
+  --color-note-selected: rgba(46,170,220,0.08);
+  --color-note-selected-border: #2eaadc;
+  --color-note-hover: rgba(0,0,0,0.02);
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+}
+
+/* ── Sunset Theme ──────────────────────────────────────────────── */
+[data-theme="sunset"] {
+  --color-bg: #fef9f5;
+  --color-surface: #fdeee3;
+  --color-surface-raised: #fef4ec;
+  --color-surface-sunken: #f9e0ce;
+  --color-border: #f0c4a0;
+  --color-border-subtle: #f7d8bc;
+  --color-text: #2d1505;
+  --color-text-secondary: #7a3e1a;
+  --color-text-tertiary: #b06540;
+  --color-primary: #e8650a;
+  --color-primary-hover: #c54d00;
+  --color-primary-subtle: rgba(232,101,10,0.1);
+  --color-sidebar-bg: linear-gradient(180deg, #7b2d00 0%, #6b2500 100%);
+  --color-sidebar-bg-flat: #7b2d00;
+  --color-sidebar-text: #fdeee3;
+  --color-sidebar-text-secondary: #e0a882;
+  --color-sidebar-active: rgba(255,180,100,0.2);
+  --color-sidebar-active-text: #ffcf9d;
+  --color-sidebar-hover: rgba(255,255,255,0.06);
+  --color-toolbar-bg: rgba(254,249,245,0.92);
+  --color-toolbar-border: rgba(200,100,20,0.12);
+  --color-statusbar-bg: #fdeee3;
+  --color-statusbar-text: #b06540;
+  --color-danger: #d63031;
+  --color-danger-hover: #b71c1c;
+  --color-danger-subtle: rgba(214,48,49,0.1);
+  --color-success: #00b894;
+  --color-success-subtle: rgba(0,184,148,0.1);
+  --color-warning: #fdcb6e;
+  --color-highlight: rgba(232,101,10,0.12);
+  --color-note-selected: rgba(232,101,10,0.08);
+  --color-note-selected-border: #e8650a;
+  --color-note-hover: rgba(150,60,10,0.04);
+}
+
+/* ── Mobile: collapsible formatting toolbar ───────────────────── */
+@media (max-width: 768px) {
+  .editor-toolbar {
+    display: none;
+    flex-wrap: wrap;
+    gap: 2px;
+    padding: 4px 8px;
+  }
+
+  .editor-toolbar--mobile-open {
+    display: flex;
+  }
+
+  .editor-toolbar-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+    font-size: 0.85rem;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    border: none;
+    border-bottom: 1px solid var(--color-border);
+    width: 100%;
+    text-align: left;
+  }
+}
+
+/* Hide the toggle button on desktop */
+.editor-toolbar-toggle {
+  display: none;
+}

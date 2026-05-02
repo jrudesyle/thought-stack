@@ -1,10 +1,22 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <rect width="512" height="512" rx="64" fill="#2563eb"/>
-  <g transform="translate(96, 80)" fill="none" stroke="#fff" stroke-width="24" stroke-linecap="round" stroke-linejoin="round">
-    <rect x="0" y="0" width="320" height="352" rx="24" fill="none"/>
-    <line x1="64" y1="80" x2="256" y2="80"/>
-    <line x1="64" y1="144" x2="256" y2="144"/>
-    <line x1="64" y1="208" x2="192" y2="208"/>
-    <line x1="64" y1="272" x2="224" y2="272"/>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Notebook body -->
+  <rect x="18" y="8" width="66" height="84" rx="5" fill="#ffffff" stroke="#d1d5db" stroke-width="1.5"/>
+  <!-- Binding strip -->
+  <rect x="18" y="8" width="16" height="84" rx="5" fill="#4f46e5"/>
+  <rect x="26" y="8" width="8" height="84" fill="#4f46e5"/>
+  <!-- Spiral rings -->
+  <circle cx="26" cy="23" r="4.5" fill="none" stroke="#ffffff" stroke-width="2.2"/>
+  <circle cx="26" cy="37" r="4.5" fill="none" stroke="#ffffff" stroke-width="2.2"/>
+  <circle cx="26" cy="51" r="4.5" fill="none" stroke="#ffffff" stroke-width="2.2"/>
+  <circle cx="26" cy="65" r="4.5" fill="none" stroke="#ffffff" stroke-width="2.2"/>
+  <circle cx="26" cy="79" r="4.5" fill="none" stroke="#ffffff" stroke-width="2.2"/>
+  <!-- Red margin line -->
+  <line x1="41" y1="18" x2="41" y2="82" stroke="#fca5a5" stroke-width="1.2" stroke-dasharray="0"/>
+  <!-- Ruled lines -->
+  <line x1="45" y1="28" x2="76" y2="28" stroke="#e5e7eb" stroke-width="1.5"/>
+  <line x1="45" y1="38" x2="76" y2="38" stroke="#e5e7eb" stroke-width="1.5"/>
+  <line x1="45" y1="48" x2="76" y2="48" stroke="#e5e7eb" stroke-width="1.5"/>
+  <line x1="45" y1="58" x2="76" y2="58" stroke="#e5e7eb" stroke-width="1.5"/>
+  <line x1="45" y1="68" x2="76" y2="68" stroke="#e5e7eb" stroke-width="1.5"/>
+  <line x1="45" y1="78" x2="76" y2="78" stroke="#e5e7eb" stroke-width="1.5"/>
 </svg>

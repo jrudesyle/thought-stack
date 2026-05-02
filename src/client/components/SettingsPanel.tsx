@@ -3,7 +3,7 @@ import { system, type AppSettings } from '../api';
 
 // ── Theme helpers ──────────────────────────────────────────────────
 
-export type ThemePreference = 'system' | 'light' | 'dark' | 'evernote';
+export type ThemePreference = 'system' | 'light' | 'dark' | 'evernote' | 'ocean' | 'warm-paper' | 'night-owl' | 'notion' | 'sunset';
 
 /**
  * Apply a theme to the document. When 'system' is selected, remove the
@@ -23,7 +23,8 @@ export function applyTheme(preference: ThemePreference): void {
  */
 export async function loadThemePreference(): Promise<ThemePreference> {
   const valid = (t: unknown): t is ThemePreference =>
-    t === 'light' || t === 'dark' || t === 'system' || t === 'evernote';
+    t === 'light' || t === 'dark' || t === 'system' || t === 'evernote' ||
+    t === 'ocean' || t === 'warm-paper' || t === 'night-owl' || t === 'notion' || t === 'sunset';
   try {
     const settings = await system.getSettings();
     if (valid(settings.theme)) return settings.theme as ThemePreference;
@@ -203,13 +204,23 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
           <div className="settings-section">
             <h3>Theme</h3>
             <div className="settings-theme-options">
-              {(['system', 'light', 'dark', 'evernote'] as ThemePreference[]).map((t) => (
+              {([
+                ['system',     '🖥',  'System'],
+                ['light',      '☀',   'Light'],
+                ['dark',       '🌙',  'Dark'],
+                ['evernote',   '🐘',  'Evernote'],
+                ['ocean',      '🌊',  'Ocean'],
+                ['warm-paper', '📜',  'Warm Paper'],
+                ['night-owl',  '🦉',  'Night Owl'],
+                ['notion',     '◻',   'Notion'],
+                ['sunset',     '🌅',  'Sunset'],
+              ] as [ThemePreference, string, string][]).map(([t, icon, label]) => (
                 <button
                   key={t}
                   className={`settings-theme-btn ${theme === t ? 'settings-theme-btn--active' : ''}`}
                   onClick={() => handleThemeChange(t)}
                 >
-                  {t === 'system' ? '🖥 System' : t === 'light' ? '☀ Light' : t === 'dark' ? '🌙 Dark' : '🐘 Evernote'}
+                  {icon} {label}
                 </button>
               ))}
             </div>

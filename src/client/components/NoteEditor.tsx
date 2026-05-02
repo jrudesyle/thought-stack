@@ -80,6 +80,7 @@ export function NoteEditor({ notePath, onNoteSaved }: NoteEditorProps) {
   const [currentTags, setCurrentTags] = useState<string[]>([]);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [loading, setLoading] = useState(false);
+  const [toolbarOpen, setToolbarOpen] = useState(false);
   const titleRef = useRef<HTMLInputElement>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const currentNotePathRef = useRef<string | null>(null);
@@ -351,8 +352,17 @@ export function NoteEditor({ notePath, onNoteSaved }: NoteEditorProps) {
 
   return (
     <main className="editor-panel" aria-label="Note editor">
+      {/* Mobile toolbar toggle */}
+      <button
+        className="editor-toolbar-toggle"
+        onClick={() => setToolbarOpen(o => !o)}
+        aria-label={toolbarOpen ? 'Hide formatting' : 'Show formatting'}
+      >
+        ✏️ {toolbarOpen ? 'Hide Formatting' : 'Show Formatting'}
+      </button>
+
       {/* Editor Toolbar */}
-      <div className="editor-toolbar" role="toolbar" aria-label="Formatting toolbar">
+      <div className={`editor-toolbar${toolbarOpen ? ' editor-toolbar--mobile-open' : ''}`} role="toolbar" aria-label="Formatting toolbar">
         <button
           className={`editor-toolbar-btn ${editor?.isActive('bold') ? 'editor-toolbar-btn--active' : ''}`}
           onClick={() => editor?.chain().focus().toggleBold().run()}
