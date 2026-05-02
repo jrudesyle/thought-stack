@@ -1,22 +1,24 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <!-- Notebook body -->
-  <rect x="18" y="8" width="66" height="84" rx="5" fill="#ffffff" stroke="#d1d5db" stroke-width="1.5"/>
-  <!-- Binding strip -->
-  <rect x="18" y="8" width="16" height="84" rx="5" fill="#4f46e5"/>
-  <rect x="26" y="8" width="8" height="84" fill="#4f46e5"/>
-  <!-- Spiral rings -->
-  <circle cx="26" cy="23" r="4.5" fill="none" stroke="#ffffff" stroke-width="2.2"/>
-  <circle cx="26" cy="37" r="4.5" fill="none" stroke="#ffffff" stroke-width="2.2"/>
-  <circle cx="26" cy="51" r="4.5" fill="none" stroke="#ffffff" stroke-width="2.2"/>
-  <circle cx="26" cy="65" r="4.5" fill="none" stroke="#ffffff" stroke-width="2.2"/>
-  <circle cx="26" cy="79" r="4.5" fill="none" stroke="#ffffff" stroke-width="2.2"/>
-  <!-- Red margin line -->
-  <line x1="41" y1="18" x2="41" y2="82" stroke="#fca5a5" stroke-width="1.2" stroke-dasharray="0"/>
+  <!-- Indigo background -->
+  <rect width="100" height="100" rx="22" fill="#4f46e5"/>
+  <!-- Notebook pages (slightly offset for depth) -->
+  <rect x="30" y="18" width="44" height="56" rx="4" fill="#c7d2fe" opacity="0.5"/>
+  <rect x="27" y="15" width="44" height="56" rx="4" fill="#e0e7ff"/>
   <!-- Ruled lines -->
-  <line x1="45" y1="28" x2="76" y2="28" stroke="#e5e7eb" stroke-width="1.5"/>
-  <line x1="45" y1="38" x2="76" y2="38" stroke="#e5e7eb" stroke-width="1.5"/>
-  <line x1="45" y1="48" x2="76" y2="48" stroke="#e5e7eb" stroke-width="1.5"/>
-  <line x1="45" y1="58" x2="76" y2="58" stroke="#e5e7eb" stroke-width="1.5"/>
-  <line x1="45" y1="68" x2="76" y2="68" stroke="#e5e7eb" stroke-width="1.5"/>
-  <line x1="45" y1="78" x2="76" y2="78" stroke="#e5e7eb" stroke-width="1.5"/>
+  <line x1="35" y1="30" x2="63" y2="30" stroke="#a5b4fc" stroke-width="2" stroke-linecap="round"/>
+  <line x1="35" y1="38" x2="63" y2="38" stroke="#a5b4fc" stroke-width="2" stroke-linecap="round"/>
+  <line x1="35" y1="46" x2="63" y2="46" stroke="#a5b4fc" stroke-width="2" stroke-linecap="round"/>
+  <line x1="35" y1="54" x2="55" y2="54" stroke="#a5b4fc" stroke-width="2" stroke-linecap="round"/>
+  <!-- Spiral coils -->
+  <circle cx="27" cy="28" r="3.5" fill="none" stroke="#818cf8" stroke-width="2"/>
+  <circle cx="27" cy="39" r="3.5" fill="none" stroke="#818cf8" stroke-width="2"/>
+  <circle cx="27" cy="50" r="3.5" fill="none" stroke="#818cf8" stroke-width="2"/>
+  <circle cx="27" cy="61" r="3.5" fill="none" stroke="#818cf8" stroke-width="2"/>
+  <!-- Pencil -->
+  <g transform="translate(52,52) rotate(45)">
+    <rect x="-5" y="-22" width="10" height="34" rx="2" fill="#fbbf24"/>
+    <polygon points="-5,12 5,12 0,22" fill="#f59e0b"/>
+    <rect x="-5" y="-22" width="10" height="6" rx="2" fill="#9ca3af"/>
+    <line x1="-5" y1="-16" x2="5" y2="-16" stroke="#d1d5db" stroke-width="1"/>
+  </g>
 </svg>
