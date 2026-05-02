@@ -831,6 +831,7 @@ input, select, textarea {
   border-left: 3px solid transparent;
   margin-bottom: 2px;
   position: relative;
+  touch-action: manipulation;
 }
 
 .note-list-item:hover {
@@ -2265,13 +2266,14 @@ select:focus-visible {
     transform: translateX(0);
   }
 
-  /* Note list: full width, scrollable */
+  /* Note list: full width, fills remaining height */
   .note-list {
     width: 100%;
-    height: 100%;
+    flex: 1;
+    min-height: 0;
     border-right: none;
     border-bottom: 1px solid var(--color-border);
-    overflow-y: auto;
+    overflow: hidden;
   }
 
   /* Hide note list when a note is open on mobile */
@@ -2396,6 +2398,7 @@ select:focus-visible {
     background: var(--color-bg, #fff);
     transform: translateX(100%);
     transition: transform 0.25s ease;
+    overflow: hidden;
   }
 
   .editor-pane--mobile-open {
