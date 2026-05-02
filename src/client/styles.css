@@ -2969,3 +2969,87 @@ select:focus-visible {
   border-radius: 0 0 6px 6px;
   margin-top: -1px;
 }
+
+/* ── AI Selection Toolbar ─────────────────────────────────────── */
+
+.ai-selection-toolbar {
+  position: fixed;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-lg);
+  padding: 4px 6px;
+  pointer-events: auto;
+  animation: ai-toolbar-pop 0.12s ease;
+}
+
+@keyframes ai-toolbar-pop {
+  from { opacity: 0; transform: translateY(4px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.ai-selection-toolbar--busy {
+  gap: 8px;
+  padding: 6px 12px;
+  font-size: 0.82rem;
+  color: var(--color-text-secondary);
+}
+
+.ai-selection-action {
+  background: none;
+  border: none;
+  border-radius: 5px;
+  padding: 4px 8px;
+  font-size: 0.78rem;
+  color: var(--color-text);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.1s;
+}
+
+.ai-selection-action:hover {
+  background: var(--color-hover);
+  color: var(--color-primary);
+}
+
+.ai-selection-spinner {
+  display: inline-block;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── /ai slash busy indicator ─────────────────────────────────── */
+
+.ai-slash-busy {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+
+/* ── AI message actions (Insert + Edit Note) ──────────────────── */
+
+.ai-message-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.ai-replace-btn {
+  background: var(--color-primary) !important;
+  color: #fff !important;
+  border-color: var(--color-primary) !important;
+}
+
+.ai-replace-btn:hover {
+  opacity: 0.88;
+}

@@ -16,6 +16,9 @@ import { Markdown } from 'tiptap-markdown';
 import { notes as notesApi, images as imagesApi, type NoteData } from '../api';
 import { TagInput } from './TagInput';
 import { AiChat } from './AiChat';
+import { AISelectionToolbar } from './AISelectionToolbar';
+import { AiSlashCommand } from '../api/ai-slash-extension';
+import { streamChat, loadAIConfig } from '../api/ai-client';
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -76,22 +79,64 @@ function vaultUrlsToMarkdown(markdown: string): string {
 // ── Component ──────────────────────────────────────────────────────
 
 export function NoteEditor({ notePath, onNoteSaved }: NoteEditorProps) {
-  const [note, setNote] = useState<NoteData | null>(null);
-  const [title, setTitle] = useState('');
+  const [note, setNote]               = useState<NoteData | null>(null);
+  const [title, setTitle]             = useState('');
   const [currentTags, setCurrentTags] = useState<string[]>([]);
-  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
-  const [loading, setLoading] = useState(false);
+  const [saveStatus, setSaveStatus]   = useState<SaveStatus>('idle');
+  const [loading, setLoading]         = useState(false);
   const [toolbarOpen, setToolbarOpen] = useState(false);
-  const titleRef = useRef<HTMLInputElement>(null);
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const currentNotePathRef = useRef<string | null>(null);
-  const currentTagsRef = useRef<string[]>([]);
-  const isNewNoteRef = useRef(false);
+  const [aiSlashBusy, setAiSlashBusy] = useState(false);
+  const [aiSlashLabel, setAiSlashLabel] = useState('');
+  const titleRef              = useRef<HTMLInputElement>(null);
+  const saveTimerRef          = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const currentNotePathRef    = useRef<string | null>(null);
+  const currentTagsRef        = useRef<string[]>([]);
+  const isNewNoteRef          = useRef(false);
+  const aiSlashHandlerRef     = useRef<((instruction: string, from: number, to: number) => void) | null>(null);
 
   // Keep tags ref in sync
   useEffect(() => {
     currentTagsRef.current = currentTags;
   }, [currentTags]);
+
+  // ── /ai slash command handler ──────────────────────────────────
+
+  const handleAiSlashCommand = useCallback(async (instruction: string, from: number, to: number) => {
+    const config = loadAIConfig();
+    if (!config || !editor) return;
+
+    setAiSlashBusy(true);
+    setAiSlashLabel(instruction.length > 30 ? instruction.slice(0, 30) + '…' : instruction);
+
+    // Clear the /ai line
+    editor.chain().focus().deleteRange({ from, to }).run();
+
+    try {
+      const noteCtx = `${titleRef.current?.value ?? ''}\n\n${editor.storage.markdown.getMarkdown()}`;
+      let result = '';
+      for await (const chunk of streamChat(
+        [{ role: 'user', content: instruction }],
+        noteCtx,
+        config,
+      )) {
+        result += chunk;
+      }
+      result = result.trim();
+      if (result) {
+        editor.chain().focus().insertContentAt(from, result).run();
+      }
+    } catch (err: any) {
+      console.error('[/ai command]', err);
+    } finally {
+      setAiSlashBusy(false);
+      setAiSlashLabel('');
+    }
+  }, [editor]);
+
+  // Keep a ref so the TipTap extension (created once) can always call the latest version
+  useEffect(() => {
+    aiSlashHandlerRef.current = handleAiSlashCommand;
+  }, [handleAiSlashCommand]);
 
   // ── TipTap editor setup ────────────────────────────────────────
 
@@ -123,6 +168,11 @@ export function NoteEditor({ notePath, onNoteSaved }: NoteEditorProps) {
         html: false,
         transformPastedText: true,
         transformCopiedText: true,
+      }),
+      AiSlashCommand.configure({
+        onCommand: (instruction, from, to) => {
+          aiSlashHandlerRef.current?.(instruction, from, to);
+        },
       }),
     ],
     editorProps: {
@@ -533,6 +583,12 @@ export function NoteEditor({ notePath, onNoteSaved }: NoteEditorProps) {
       {/* Editor Content */}
       <div className="editor-content">
         <EditorContent editor={editor} />
+        {/* /ai busy indicator */}
+        {aiSlashBusy && (
+          <div className="ai-slash-busy">
+            <span className="ai-selection-spinner">✨</span> AI writing: <em>{aiSlashLabel}</em>
+          </div>
+        )}
       </div>
 
       {/* Save Status */}
@@ -542,10 +598,19 @@ export function NoteEditor({ notePath, onNoteSaved }: NoteEditorProps) {
         {saveStatus === 'failed' && <span className="save-status save-status--failed">✕ Save failed</span>}
       </div>
 
+      {/* AI Selection Toolbar (desktop only) */}
+      {editor && (
+        <AISelectionToolbar
+          editor={editor}
+          noteContext={`${title}\n\n${editor.storage.markdown?.getMarkdown?.() ?? ''}`}
+        />
+      )}
+
       {/* AI Chat */}
       <AiChat
         noteContext={`${title}\n\n${editor?.storage.markdown?.getMarkdown?.() ?? editor?.getText() ?? ''}`}
         onInsert={(text) => editor?.chain().focus().insertContent(text).run()}
+        onReplaceNote={(markdown) => editor?.chain().focus().setContent(markdown).run()}
       />
     </main>
   );

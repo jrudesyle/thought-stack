@@ -4,9 +4,10 @@ import { streamChat, loadAIConfig, type ChatMessage } from '../api/ai-client';
 interface AiChatProps {
   noteContext: string;
   onInsert: (text: string) => void;
+  onReplaceNote?: (markdown: string) => void;
 }
 
-export function AiChat({ noteContext, onInsert }: AiChatProps) {
+export function AiChat({ noteContext, onInsert, onReplaceNote }: AiChatProps) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
@@ -118,7 +119,7 @@ export function AiChat({ noteContext, onInsert }: AiChatProps) {
       {open && (
         <div className="ai-panel">
           <div className="ai-panel-header">
-            <span>✨ AI Assistant <span className="ai-provider-badge">{config.provider === 'openai' ? 'GPT-4o' : 'Claude'}</span></span>
+            <span>✨ AI Assistant <span className="ai-provider-badge">{config.provider === 'openai' ? 'GPT-4o' : config.provider === 'anthropic' ? 'Claude' : config.model ?? 'OpenClaw'}</span></span>
             <div className="ai-panel-actions">
               {messages.length > 0 && (
                 <button className="ai-panel-clear" onClick={handleClear} title="Clear chat">🗑</button>
@@ -147,13 +148,24 @@ export function AiChat({ noteContext, onInsert }: AiChatProps) {
                   {msg.content || (streaming && i === messages.length - 1 ? <span className="ai-cursor">▋</span> : '')}
                 </div>
                 {msg.role === 'assistant' && msg.content && !streaming && (
-                  <button
-                    className="ai-insert-btn"
-                    onClick={() => handleInsert(msg.content)}
-                    title="Insert into note"
-                  >
-                    ↩ Insert
-                  </button>
+                  <div className="ai-message-actions">
+                    <button
+                      className="ai-insert-btn"
+                      onClick={() => handleInsert(msg.content)}
+                      title="Insert at cursor"
+                    >
+                      ↩ Insert
+                    </button>
+                    {onReplaceNote && (
+                      <button
+                        className="ai-insert-btn ai-replace-btn"
+                        onClick={() => onReplaceNote(msg.content)}
+                        title="Replace entire note body"
+                      >
+                        ✏️ Edit Note
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
             ))}
