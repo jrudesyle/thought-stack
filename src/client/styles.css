@@ -2277,7 +2277,9 @@ select:focus-visible {
     min-height: 0;
     border-right: none;
     border-bottom: 1px solid var(--color-border);
-    overflow: hidden;
+    overflow: visible; /* let .note-list-content handle its own scroll */
+    display: flex;
+    flex-direction: column;
   }
 
   /* Hide note list when a note is open on mobile */
@@ -2285,20 +2287,7 @@ select:focus-visible {
     display: none;
   }
 
-  /* Editor: full screen */
-  .editor-pane {
-    position: fixed;
-    inset: 0;
-    top: var(--toolbar-height);
-    z-index: 150;
-    background: var(--color-bg);
-    transform: translateX(100%);
-    transition: transform 0.25s ease;
-  }
-
-  .editor-pane--mobile-open {
-    transform: translateX(0);
-  }
+  /* Editor: handled by second @media block below */
 
   /* Back button in editor on mobile */
   .editor-back-btn {

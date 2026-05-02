@@ -284,33 +284,40 @@ export function App() {
     // Stored vault exists but needs permission re-grant (e.g. after page refresh)
     if (isFSA && needsUnlock) {
       return (
-        <div className="vault-picker-overlay">
-          <div className="vault-picker-panel">
-            <div className="vault-picker-logo">🔒</div>
-            <h1 className="vault-picker-title">ThoughtStack</h1>
-            <p className="vault-picker-subtitle">Tap below to reconnect to your vault.</p>
-            <div className="vault-picker-actions">
-              <button
-                className="vault-picker-btn vault-picker-btn--primary"
-                disabled={unlocking}
-                onClick={async () => {
-                  setUnlocking(true);
-                  const ok = await reconnectVault();
-                  if (ok) {
-                    const path = await systemApi.getVaultPath();
-                    setVaultPath(path);
-                    setVaultReady(true);
-                    setNeedsUnlock(false);
-                  } else {
-                    setNeedsUnlock(false); // fall through to full picker
-                  }
-                  setUnlocking(false);
-                }}
-              >
-                {unlocking ? 'Unlocking…' : '🔓 Unlock Vault'}
-              </button>
-            </div>
-            <p className="vault-picker-hint">Your vault folder is remembered — just tap to re-grant access.</p>
+        <div className="app-layout">
+          <header className="toolbar">
+            <div className="vault-picker-logo" style={{ fontSize: '1.2rem', margin: 0 }}>🔒</div>
+            <span style={{ flex: 1, fontWeight: 700, fontSize: '1rem', paddingLeft: 8 }}>ThoughtStack</span>
+          </header>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16, padding: 32, textAlign: 'center' }}>
+            <div style={{ fontSize: '3rem' }}>🔒</div>
+            <p style={{ fontSize: '1rem', color: 'var(--color-text-secondary)', maxWidth: 280 }}>
+              Tap below to reconnect to your vault. Android requires this on every page load.
+            </p>
+            <button
+              className="vault-picker-btn vault-picker-btn--primary"
+              style={{ fontSize: '1.1rem', padding: '14px 32px' }}
+              disabled={unlocking}
+              onClick={async () => {
+                setUnlocking(true);
+                const ok = await reconnectVault();
+                if (ok) {
+                  const path = await systemApi.getVaultPath();
+                  setVaultPath(path);
+                  setVaultReady(true);
+                  setNeedsUnlock(false);
+                  setRefreshKey(k => k + 1);
+                } else {
+                  setNeedsUnlock(false); // fall through to full picker
+                }
+                setUnlocking(false);
+              }}
+            >
+              {unlocking ? '⏳ Unlocking…' : '🔓 Unlock Vault'}
+            </button>
+            <p style={{ fontSize: '0.8rem', color: 'var(--color-text-tertiary)' }}>
+              Your vault folder is remembered — just tap to re-grant access.
+            </p>
           </div>
         </div>
       );

@@ -117,6 +117,10 @@ async function idbSet(key: string, value: unknown): Promise<void> {
 // ── Vault handle management ───────────────────────────────────────────────
 
 let _vaultHandle: FileSystemDirectoryHandle | null = null;
+// Pre-fetched handle cached during `hasStoredVault()` so unlock button can
+// call requestPermission immediately without an async IDB lookup first
+// (Android Chrome revokes user-gesture activation after the first await).
+let _pendingHandle: FileSystemDirectoryHandle | null = null;
 
 async function getVaultHandle(): Promise<FileSystemDirectoryHandle | null> {
   if (_vaultHandle) return _vaultHandle;
@@ -133,20 +137,36 @@ async function getVaultHandle(): Promise<FileSystemDirectoryHandle | null> {
   return null;
 }
 
-/** Returns true if a vault handle is stored in IDB, even if permission needs re-granting. */
+/** Returns true if a vault handle is stored in IDB, even if permission needs re-granting.
+ *  Also pre-caches the handle so reconnectVault() can skip the IDB await. */
 export async function hasStoredVault(): Promise<boolean> {
   const stored = await idbGet<FileSystemDirectoryHandle>(HANDLE_KEY);
-  return stored !== null;
+  if (stored !== undefined && stored !== null) {
+    _pendingHandle = stored;
+    return true;
+  }
+  return false;
 }
 
-/** Re-requests permission on a stored handle. MUST be called from a user gesture (click). */
+/** Re-requests permission on a stored handle. MUST be called from a user gesture (click).
+ *  Uses the pre-cached handle so requestPermission is the FIRST await, preserving
+ *  the browser's user-gesture activation window (critical on Android Chrome). */
 export async function reconnectVault(): Promise<boolean> {
-  const stored = await idbGet<FileSystemDirectoryHandle>(HANDLE_KEY);
-  if (!stored) return false;
+  const handle = _pendingHandle ?? await idbGet<FileSystemDirectoryHandle>(HANDLE_KEY);
+  if (!handle) return false;
   try {
-    const granted = await stored.requestPermission({ mode: 'readwrite' });
+    const granted = await handle.requestPermission({ mode: 'readwrite' });
     if (granted === 'granted') {
-      _vaultHandle = stored;
+      _vaultHandle = handle;
+      _pendingHandle = null;
+      return true;
+    }
+    // Fallback: some Android Chrome builds may return 'prompt' even after granting —
+    // verify with queryPermission before giving up.
+    const verify = await handle.queryPermission({ mode: 'readwrite' });
+    if (verify === 'granted') {
+      _vaultHandle = handle;
+      _pendingHandle = null;
       return true;
     }
   } catch {}
