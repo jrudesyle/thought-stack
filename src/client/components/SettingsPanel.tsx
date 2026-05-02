@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { system, type AppSettings } from '../api';
+import { loadAIConfig, saveAIConfig, clearAIConfig, type AIProvider } from '../api/ai-client';
 
 // ── Theme helpers ──────────────────────────────────────────────────
 
@@ -64,11 +65,20 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
   const [vaultPath, setVaultPath] = useState<string>('');
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
+  // AI settings
+  const [aiProvider, setAiProvider] = useState<AIProvider>('openai');
+  const [aiKey, setAiKey] = useState('');
+  const [aiKeySaved, setAiKeySaved] = useState(false);
+  const [showKey, setShowKey] = useState(false);
+
   // Load current settings when panel opens
   useEffect(() => {
     if (!open) return;
 
     loadThemePreference().then(setTheme);
+
+    const cfg = loadAIConfig();
+    if (cfg) { setAiProvider(cfg.provider); setAiKey(cfg.apiKey); setAiKeySaved(true); }
 
     // Load vault path
     (async () => {
@@ -80,6 +90,12 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
       }
     })();
   }, [open]);
+
+  const handleSaveAI = () => {
+    if (!aiKey.trim()) { clearAIConfig(); setAiKeySaved(false); return; }
+    saveAIConfig({ provider: aiProvider, apiKey: aiKey.trim() });
+    setAiKeySaved(true);
+  };
 
   // ── Theme selection ──────────────────────────────────────────────
 
@@ -223,6 +239,53 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
                   {icon} {label}
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* AI Section */}
+          <div className="settings-section">
+            <h3>✨ AI Assistant</h3>
+            <div className="settings-ai">
+              <label className="settings-label">Provider</label>
+              <div className="settings-ai-provider">
+                {(['openai', 'anthropic'] as AIProvider[]).map(p => (
+                  <button
+                    key={p}
+                    className={`settings-theme-btn ${aiProvider === p ? 'settings-theme-btn--active' : ''}`}
+                    onClick={() => { setAiProvider(p); setAiKeySaved(false); }}
+                  >
+                    {p === 'openai' ? '🤖 OpenAI' : '🧠 Anthropic'}
+                  </button>
+                ))}
+              </div>
+              <label className="settings-label" style={{ marginTop: 10 }}>
+                {aiProvider === 'openai' ? 'OpenAI API Key' : 'Anthropic API Key'}
+              </label>
+              <div className="settings-ai-key-row">
+                <input
+                  type={showKey ? 'text' : 'password'}
+                  className="settings-ai-key-input"
+                  value={aiKey}
+                  onChange={e => { setAiKey(e.target.value); setAiKeySaved(false); }}
+                  placeholder={aiProvider === 'openai' ? 'sk-...' : 'sk-ant-...'}
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+                <button className="settings-btn" onClick={() => setShowKey(s => !s)} style={{ flexShrink: 0 }}>
+                  {showKey ? '🙈' : '👁'}
+                </button>
+              </div>
+              <div className="settings-ai-actions">
+                <button className="settings-btn settings-btn--primary" onClick={handleSaveAI}>
+                  {aiKeySaved ? '✓ Saved' : 'Save Key'}
+                </button>
+                {aiKeySaved && (
+                  <button className="settings-btn" onClick={() => { clearAIConfig(); setAiKey(''); setAiKeySaved(false); }}>
+                    Remove
+                  </button>
+                )}
+              </div>
+              <p className="settings-hint">Your key is stored locally only — never sent anywhere except the AI provider.</p>
             </div>
           </div>
 

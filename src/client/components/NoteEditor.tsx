@@ -15,6 +15,7 @@ import { Placeholder } from '@tiptap/extension-placeholder';
 import { Markdown } from 'tiptap-markdown';
 import { notes as notesApi, images as imagesApi, type NoteData } from '../api';
 import { TagInput } from './TagInput';
+import { AiChat } from './AiChat';
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -538,6 +539,12 @@ export function NoteEditor({ notePath, onNoteSaved }: NoteEditorProps) {
         {saveStatus === 'saved' && <span className="save-status save-status--saved">✓ Saved</span>}
         {saveStatus === 'failed' && <span className="save-status save-status--failed">✕ Save failed</span>}
       </div>
+
+      {/* AI Chat */}
+      <AiChat
+        noteContext={`${title}\n\n${editor?.storage.markdown?.getMarkdown?.() ?? editor?.getText() ?? ''}`}
+        onInsert={(text) => editor?.chain().focus().insertContent(text).run()}
+      />
     </main>
   );
 }
