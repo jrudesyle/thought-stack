@@ -99,45 +99,6 @@ export function NoteEditor({ notePath, onNoteSaved }: NoteEditorProps) {
     currentTagsRef.current = currentTags;
   }, [currentTags]);
 
-  // ── /ai slash command handler ──────────────────────────────────
-
-  const handleAiSlashCommand = useCallback(async (instruction: string, from: number, to: number) => {
-    const config = loadAIConfig();
-    if (!config || !editor) return;
-
-    setAiSlashBusy(true);
-    setAiSlashLabel(instruction.length > 30 ? instruction.slice(0, 30) + '…' : instruction);
-
-    // Clear the /ai line
-    editor.chain().focus().deleteRange({ from, to }).run();
-
-    try {
-      const noteCtx = `${titleRef.current?.value ?? ''}\n\n${editor.storage.markdown.getMarkdown()}`;
-      let result = '';
-      for await (const chunk of streamChat(
-        [{ role: 'user', content: instruction }],
-        noteCtx,
-        config,
-      )) {
-        result += chunk;
-      }
-      result = result.trim();
-      if (result) {
-        editor.chain().focus().insertContentAt(from, result).run();
-      }
-    } catch (err: any) {
-      console.error('[/ai command]', err);
-    } finally {
-      setAiSlashBusy(false);
-      setAiSlashLabel('');
-    }
-  }, [editor]);
-
-  // Keep a ref so the TipTap extension (created once) can always call the latest version
-  useEffect(() => {
-    aiSlashHandlerRef.current = handleAiSlashCommand;
-  }, [handleAiSlashCommand]);
-
   // ── TipTap editor setup ────────────────────────────────────────
 
   const editor = useEditor({
@@ -207,6 +168,44 @@ export function NoteEditor({ notePath, onNoteSaved }: NoteEditorProps) {
       scheduleSave();
     },
   });
+
+  // ── /ai slash command handler (defined after editor to avoid TDZ) ──
+
+  const handleAiSlashCommand = useCallback(async (instruction: string, from: number, to: number) => {
+    const config = loadAIConfig();
+    if (!config || !editor) return;
+
+    setAiSlashBusy(true);
+    setAiSlashLabel(instruction.length > 30 ? instruction.slice(0, 30) + '…' : instruction);
+
+    editor.chain().focus().deleteRange({ from, to }).run();
+
+    try {
+      const noteCtx = `${titleRef.current?.value ?? ''}\n\n${editor.storage.markdown.getMarkdown()}`;
+      let result = '';
+      for await (const chunk of streamChat(
+        [{ role: 'user', content: instruction }],
+        noteCtx,
+        config,
+      )) {
+        result += chunk;
+      }
+      result = result.trim();
+      if (result) {
+        editor.chain().focus().insertContentAt(from, result).run();
+      }
+    } catch (err: any) {
+      console.error('[/ai command]', err);
+    } finally {
+      setAiSlashBusy(false);
+      setAiSlashLabel('');
+    }
+  }, [editor]);
+
+  // Keep ref current so the extension (created once) always calls the latest handler
+  useEffect(() => {
+    aiSlashHandlerRef.current = handleAiSlashCommand;
+  }, [handleAiSlashCommand]);
 
   // ── Image handling ─────────────────────────────────────────────
 
