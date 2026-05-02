@@ -84,6 +84,8 @@ export function NoteEditor({ notePath, onNoteSaved }: NoteEditorProps) {
   const [currentTags, setCurrentTags] = useState<string[]>([]);
   const [saveStatus, setSaveStatus]   = useState<SaveStatus>('idle');
   const [loading, setLoading]         = useState(false);
+  const [loadError, setLoadError]     = useState<string | null>(null);
+  const [retryKey, setRetryKey]       = useState(0);
   const [toolbarOpen, setToolbarOpen] = useState(false);
   const [aiSlashBusy, setAiSlashBusy] = useState(false);
   const [aiSlashLabel, setAiSlashLabel] = useState('');
@@ -299,6 +301,7 @@ export function NoteEditor({ notePath, onNoteSaved }: NoteEditorProps) {
       setNote(null);
       setTitle('');
       setCurrentTags([]);
+      setLoadError(null);
       editor?.commands.clearContent();
       setSaveStatus('idle');
       return;
@@ -306,6 +309,7 @@ export function NoteEditor({ notePath, onNoteSaved }: NoteEditorProps) {
 
     let cancelled = false;
     setLoading(true);
+    setLoadError(null);
 
     (async () => {
       try {
@@ -333,6 +337,7 @@ export function NoteEditor({ notePath, onNoteSaved }: NoteEditorProps) {
         }
       } catch (err) {
         console.error('Failed to load note:', err);
+        if (!cancelled) setLoadError(err instanceof Error ? err.message : String(err));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -345,7 +350,7 @@ export function NoteEditor({ notePath, onNoteSaved }: NoteEditorProps) {
         saveTimerRef.current = null;
       }
     };
-  }, [notePath, editor]);
+  }, [notePath, editor, retryKey]);
 
   // Cleanup timer on unmount
   useEffect(() => {
@@ -398,6 +403,29 @@ export function NoteEditor({ notePath, onNoteSaved }: NoteEditorProps) {
       <main className="editor-panel" aria-label="Note editor">
         <div className="editor-empty">
           <p>Loading…</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <main className="editor-panel" aria-label="Note editor">
+        <div className="editor-empty">
+          <p style={{ color: 'var(--color-danger, red)', fontSize: '0.9em', padding: '16px', textAlign: 'center' }}>
+            ⚠️ Failed to load note
+          </p>
+          <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.8em', padding: '0 16px', textAlign: 'center', wordBreak: 'break-all' }}>
+            {loadError}
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
+            <button
+              style={{ padding: '8px 20px', borderRadius: 6, border: '1px solid var(--color-border)', cursor: 'pointer', background: 'var(--color-surface)' }}
+              onClick={() => { setLoadError(null); setRetryKey(k => k + 1); }}
+            >
+              Retry
+            </button>
+          </div>
         </div>
       </main>
     );

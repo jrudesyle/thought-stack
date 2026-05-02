@@ -216,7 +216,7 @@ export function NoteList({ context, selectedNotePath, onSelectNote, onCreateNote
             key={note.path || note.id}
             className={`note-list-item ${selectedNotePath === note.path ? 'note-list-item--selected' : ''}`}
             onClick={() => onSelectNote(note.path)}
-            onTouchEnd={(e) => { e.preventDefault(); onSelectNote(note.path); }}
+            onTouchEnd={() => onSelectNote(note.path)}
             onContextMenu={(e) => context.type !== 'trash' ? handleContextMenu(e, note.path) : undefined}
             draggable={context.type !== 'trash' && !('ontouchstart' in window)}
             onDragStart={(e) => handleDragStart(e, note.path)}
