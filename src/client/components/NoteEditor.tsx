@@ -212,8 +212,6 @@ export function NoteEditor({ notePath, onNoteSaved }: NoteEditorProps) {
     const path = currentNotePathRef.current;
     if (!path || !editor) return;
 
-    // Get Markdown content from TipTap, converting vault:// URLs
-    // back to relative image paths for storage.
     const rawContent = editor.storage.markdown.getMarkdown();
     const content = vaultUrlsToMarkdown(rawContent);
     const currentTitle = titleRef.current?.value ?? '';
@@ -221,7 +219,12 @@ export function NoteEditor({ notePath, onNoteSaved }: NoteEditorProps) {
 
     setSaveStatus('saving');
     try {
-      await notesApi.save(path, currentTitle, content, tags);
+      const saved = await notesApi.save(path, currentTitle, content, tags);
+      // If the file was renamed (title changed), update our path ref so
+      // subsequent saves go to the correct file.
+      if (saved.path && saved.path !== currentNotePathRef.current) {
+        currentNotePathRef.current = saved.path;
+      }
       setSaveStatus('saved');
       onNoteSaved?.();
       setTimeout(() => setSaveStatus(prev => prev === 'saved' ? 'idle' : prev), 2000);
@@ -506,7 +509,7 @@ export function NoteEditor({ notePath, onNoteSaved }: NoteEditorProps) {
         </button>
       </div>
 
-      {/* Title */}
+      {/* Title + inline tag chip */}
       <div className="editor-title-area">
         <input
           ref={titleRef}
@@ -518,20 +521,19 @@ export function NoteEditor({ notePath, onNoteSaved }: NoteEditorProps) {
           placeholder="Untitled"
           aria-label="Note title"
         />
+        {note && (
+          <TagInput
+            tags={currentTags}
+            onTagsChange={handleTagsChange}
+            inline
+          />
+        )}
       </div>
 
       {/* Editor Content */}
       <div className="editor-content">
         <EditorContent editor={editor} />
       </div>
-
-      {/* Tags */}
-      {note && (
-        <TagInput
-          tags={currentTags}
-          onTagsChange={handleTagsChange}
-        />
-      )}
 
       {/* Save Status */}
       <div className="editor-status">
