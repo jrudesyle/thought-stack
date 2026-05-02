@@ -70,6 +70,8 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
   const [aiKey, setAiKey] = useState('');
   const [aiKeySaved, setAiKeySaved] = useState(false);
   const [showKey, setShowKey] = useState(false);
+  const [aiEndpointUrl, setAiEndpointUrl] = useState('');
+  const [aiModel, setAiModel] = useState('');
 
   // Load current settings when panel opens
   useEffect(() => {
@@ -78,7 +80,13 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
     loadThemePreference().then(setTheme);
 
     const cfg = loadAIConfig();
-    if (cfg) { setAiProvider(cfg.provider); setAiKey(cfg.apiKey); setAiKeySaved(true); }
+    if (cfg) {
+      setAiProvider(cfg.provider);
+      setAiKey(cfg.apiKey);
+      setAiEndpointUrl(cfg.endpointUrl ?? '');
+      setAiModel(cfg.model ?? '');
+      setAiKeySaved(true);
+    }
 
     // Load vault path
     (async () => {
@@ -92,8 +100,13 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
   }, [open]);
 
   const handleSaveAI = () => {
-    if (!aiKey.trim()) { clearAIConfig(); setAiKeySaved(false); return; }
-    saveAIConfig({ provider: aiProvider, apiKey: aiKey.trim() });
+    if (aiProvider === 'openclaw') {
+      if (!aiEndpointUrl.trim()) { clearAIConfig(); setAiKeySaved(false); return; }
+      saveAIConfig({ provider: 'openclaw', apiKey: aiKey.trim(), endpointUrl: aiEndpointUrl.trim(), model: aiModel.trim() || undefined });
+    } else {
+      if (!aiKey.trim()) { clearAIConfig(); setAiKeySaved(false); return; }
+      saveAIConfig({ provider: aiProvider, apiKey: aiKey.trim() });
+    }
     setAiKeySaved(true);
   };
 
@@ -248,39 +261,82 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
             <div className="settings-ai">
               <label className="settings-label">Provider</label>
               <div className="settings-ai-provider">
-                {(['openai', 'anthropic'] as AIProvider[]).map(p => (
+                {(['openai', 'anthropic', 'openclaw'] as AIProvider[]).map(p => (
                   <button
                     key={p}
                     className={`settings-theme-btn ${aiProvider === p ? 'settings-theme-btn--active' : ''}`}
                     onClick={() => { setAiProvider(p); setAiKeySaved(false); }}
                   >
-                    {p === 'openai' ? '🤖 OpenAI' : '🧠 Anthropic'}
+                    {p === 'openai' ? '🤖 OpenAI' : p === 'anthropic' ? '🧠 Anthropic' : '🦞 OpenClaw'}
                   </button>
                 ))}
               </div>
-              <label className="settings-label" style={{ marginTop: 10 }}>
-                {aiProvider === 'openai' ? 'OpenAI API Key' : 'Anthropic API Key'}
-              </label>
-              <div className="settings-ai-key-row">
-                <input
-                  type={showKey ? 'text' : 'password'}
-                  className="settings-ai-key-input"
-                  value={aiKey}
-                  onChange={e => { setAiKey(e.target.value); setAiKeySaved(false); }}
-                  placeholder={aiProvider === 'openai' ? 'sk-...' : 'sk-ant-...'}
-                  autoComplete="off"
-                  spellCheck={false}
-                />
-                <button className="settings-btn" onClick={() => setShowKey(s => !s)} style={{ flexShrink: 0 }}>
-                  {showKey ? '🙈' : '👁'}
-                </button>
-              </div>
+
+              {aiProvider === 'openclaw' ? (
+                <>
+                  <label className="settings-label" style={{ marginTop: 10 }}>Endpoint URL</label>
+                  <input
+                    type="text"
+                    className="settings-ai-key-input"
+                    value={aiEndpointUrl}
+                    onChange={e => { setAiEndpointUrl(e.target.value); setAiKeySaved(false); }}
+                    placeholder="http://192.168.1.x:11434/v1"
+                    autoComplete="off"
+                    spellCheck={false}
+                  />
+                  <label className="settings-label" style={{ marginTop: 10 }}>Model Name</label>
+                  <input
+                    type="text"
+                    className="settings-ai-key-input"
+                    value={aiModel}
+                    onChange={e => { setAiModel(e.target.value); setAiKeySaved(false); }}
+                    placeholder="llama3, mistral, phi3, …"
+                    autoComplete="off"
+                    spellCheck={false}
+                  />
+                  <label className="settings-label" style={{ marginTop: 10 }}>API Key (optional)</label>
+                  <div className="settings-ai-key-row">
+                    <input
+                      type={showKey ? 'text' : 'password'}
+                      className="settings-ai-key-input"
+                      value={aiKey}
+                      onChange={e => { setAiKey(e.target.value); setAiKeySaved(false); }}
+                      placeholder="Leave blank if no auth required"
+                      autoComplete="off"
+                      spellCheck={false}
+                    />
+                    <button className="settings-btn" onClick={() => setShowKey(s => !s)} style={{ flexShrink: 0 }}>
+                      {showKey ? '🙈' : '👁'}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <label className="settings-label" style={{ marginTop: 10 }}>
+                    {aiProvider === 'openai' ? 'OpenAI API Key' : 'Anthropic API Key'}
+                  </label>
+                  <div className="settings-ai-key-row">
+                    <input
+                      type={showKey ? 'text' : 'password'}
+                      className="settings-ai-key-input"
+                      value={aiKey}
+                      onChange={e => { setAiKey(e.target.value); setAiKeySaved(false); }}
+                      placeholder={aiProvider === 'openai' ? 'sk-...' : 'sk-ant-...'}
+                      autoComplete="off"
+                      spellCheck={false}
+                    />
+                    <button className="settings-btn" onClick={() => setShowKey(s => !s)} style={{ flexShrink: 0 }}>
+                      {showKey ? '🙈' : '👁'}
+                    </button>
+                  </div>
+                </>
+              )}
               <div className="settings-ai-actions">
                 <button className="settings-btn settings-btn--primary" onClick={handleSaveAI}>
                   {aiKeySaved ? '✓ Saved' : 'Save Key'}
                 </button>
                 {aiKeySaved && (
-                  <button className="settings-btn" onClick={() => { clearAIConfig(); setAiKey(''); setAiKeySaved(false); }}>
+                  <button className="settings-btn" onClick={() => { clearAIConfig(); setAiKey(''); setAiEndpointUrl(''); setAiModel(''); setAiKeySaved(false); }}>
                     Remove
                   </button>
                 )}

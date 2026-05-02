@@ -1,10 +1,14 @@
-// ── AI Client — OpenAI + Anthropic streaming chat ─────────────────
+// ── AI Client — OpenAI + Anthropic + OpenClaw streaming chat ──────
 
-export type AIProvider = 'openai' | 'anthropic';
+export type AIProvider = 'openai' | 'anthropic' | 'openclaw';
 
 export interface AIConfig {
   provider: AIProvider;
   apiKey: string;
+  /** OpenClaw: base URL of the OpenAI-compatible endpoint, e.g. http://192.168.1.5:11434/v1 */
+  endpointUrl?: string;
+  /** OpenClaw: model name to request, e.g. llama3, mistral */
+  model?: string;
 }
 
 export interface ChatMessage {
@@ -12,14 +16,21 @@ export interface ChatMessage {
   content: string;
 }
 
-const STORAGE_PROVIDER = 'ai-provider';
-const STORAGE_KEY = 'ai-api-key';
+const STORAGE_PROVIDER    = 'ai-provider';
+const STORAGE_KEY         = 'ai-api-key';
+const STORAGE_ENDPOINT    = 'ai-endpoint-url';
+const STORAGE_MODEL       = 'ai-model';
 
 export function loadAIConfig(): AIConfig | null {
   try {
     const provider = localStorage.getItem(STORAGE_PROVIDER) as AIProvider | null;
-    const apiKey = localStorage.getItem(STORAGE_KEY);
-    if (provider && apiKey) return { provider, apiKey };
+    if (!provider) return null;
+    const apiKey      = localStorage.getItem(STORAGE_KEY) ?? '';
+    const endpointUrl = localStorage.getItem(STORAGE_ENDPOINT) ?? undefined;
+    const model       = localStorage.getItem(STORAGE_MODEL) ?? undefined;
+    // openclaw doesn't require an API key
+    if (provider === 'openclaw' && endpointUrl) return { provider, apiKey, endpointUrl, model };
+    if (apiKey) return { provider, apiKey, endpointUrl, model };
   } catch {}
   return null;
 }
@@ -28,13 +39,17 @@ export function saveAIConfig(config: AIConfig): void {
   try {
     localStorage.setItem(STORAGE_PROVIDER, config.provider);
     localStorage.setItem(STORAGE_KEY, config.apiKey);
+    if (config.endpointUrl) localStorage.setItem(STORAGE_ENDPOINT, config.endpointUrl);
+    else localStorage.removeItem(STORAGE_ENDPOINT);
+    if (config.model) localStorage.setItem(STORAGE_MODEL, config.model);
+    else localStorage.removeItem(STORAGE_MODEL);
   } catch {}
 }
 
 export function clearAIConfig(): void {
   try {
-    localStorage.removeItem(STORAGE_PROVIDER);
-    localStorage.removeItem(STORAGE_KEY);
+    [STORAGE_PROVIDER, STORAGE_KEY, STORAGE_ENDPOINT, STORAGE_MODEL].forEach(k =>
+      localStorage.removeItem(k));
   } catch {}
 }
 
@@ -42,15 +57,17 @@ const SYSTEM_PROMPT = `You are a helpful writing and thinking assistant embedded
 The user will share their note with you. Help them think through ideas, summarise, expand, rewrite, or answer questions.
 Be concise and direct. When producing text meant to be inserted into the note, output only the text with no preamble.`;
 
-// ── OpenAI streaming ───────────────────────────────────────────────
+// ── OpenAI-compatible streaming (used by OpenAI + OpenClaw) ───────
 
-async function* streamOpenAI(
+async function* streamOpenAICompat(
   messages: ChatMessage[],
   noteContext: string,
+  url: string,
   apiKey: string,
+  model: string,
 ): AsyncGenerator<string> {
   const payload = {
-    model: 'gpt-4o',
+    model,
     stream: true,
     messages: [
       { role: 'system', content: SYSTEM_PROMPT },
@@ -59,15 +76,14 @@ async function* streamOpenAI(
     ],
   };
 
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify(payload),
-  });
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
+
+  const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(payload) });
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error((err as any)?.error?.message ?? `OpenAI error ${res.status}`);
+    throw new Error((err as any)?.error?.message ?? `API error ${res.status}`);
   }
 
   const reader = res.body!.getReader();
@@ -150,6 +166,20 @@ async function* streamAnthropic(
   }
 }
 
+// ── OpenClaw (OpenAI-compatible) streaming ─────────────────────────
+
+async function* streamOpenClaw(
+  messages: ChatMessage[],
+  noteContext: string,
+  endpointUrl: string,
+  apiKey: string,
+  model?: string,
+): AsyncGenerator<string> {
+  const base = endpointUrl.replace(/\/+$/, '');
+  const url = base.endsWith('/chat/completions') ? base : `${base}/chat/completions`;
+  yield* streamOpenAICompat(messages, noteContext, url, apiKey, model ?? 'llama3');
+}
+
 // ── Public API ─────────────────────────────────────────────────────
 
 export async function* streamChat(
@@ -158,7 +188,10 @@ export async function* streamChat(
   config: AIConfig,
 ): AsyncGenerator<string> {
   if (config.provider === 'openai') {
-    yield* streamOpenAI(messages, noteContext, config.apiKey);
+    yield* streamOpenAICompat(messages, noteContext, 'https://api.openai.com/v1/chat/completions', config.apiKey, 'gpt-4o');
+  } else if (config.provider === 'openclaw') {
+    if (!config.endpointUrl) throw new Error('OpenClaw endpoint URL not configured');
+    yield* streamOpenClaw(messages, noteContext, config.endpointUrl, config.apiKey, config.model);
   } else {
     yield* streamAnthropic(messages, noteContext, config.apiKey);
   }
