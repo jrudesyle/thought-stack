@@ -8,3 +8,4 @@ data/*.db-wal
 .vscode/
 .kiro/
 release/
+src-tauri/target/

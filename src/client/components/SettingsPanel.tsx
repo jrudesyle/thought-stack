@@ -22,27 +22,33 @@ export function applyTheme(preference: ThemePreference): void {
  * Falls back to 'system' if no preference is stored.
  */
 export async function loadThemePreference(): Promise<ThemePreference> {
+  const valid = (t: unknown): t is ThemePreference =>
+    t === 'light' || t === 'dark' || t === 'system' || t === 'evernote';
   try {
     const settings = await system.getSettings();
-    const theme = settings.theme as ThemePreference | undefined;
-    if (theme === 'light' || theme === 'dark' || theme === 'system') {
-      return theme;
-    }
+    if (valid(settings.theme)) return settings.theme as ThemePreference;
   } catch {
-    // electronAPI may not be available — fall back to system
+    // Electron API not available — fall through to localStorage
   }
+  try {
+    const stored = localStorage.getItem('theme-preference');
+    if (valid(stored)) return stored;
+  } catch {}
   return 'system';
 }
 
 /**
- * Persist theme preference to the Electron settings API.
+ * Persist theme preference (Electron settings API + localStorage fallback).
  */
 export async function saveThemePreference(preference: ThemePreference): Promise<void> {
   try {
     await system.updateSettings({ theme: preference });
   } catch {
-    // Silently fail — theme is already applied in the UI
+    // Silently fail in PWA mode
   }
+  try {
+    localStorage.setItem('theme-preference', preference);
+  } catch {}
 }
 
 // ── SettingsPanel Component ────────────────────────────────────────
