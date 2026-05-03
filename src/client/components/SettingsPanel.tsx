@@ -58,9 +58,11 @@ export async function saveThemePreference(preference: ThemePreference): Promise<
 interface SettingsPanelProps {
   open: boolean;
   onClose: () => void;
+  debugMode?: boolean;
+  onToggleDebug?: (v: boolean) => void;
 }
 
-export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
+export function SettingsPanel({ open, onClose, debugMode = false, onToggleDebug }: SettingsPanelProps) {
   const [theme, setTheme] = useState<ThemePreference>('system');
   const [vaultPath, setVaultPath] = useState<string>('');
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
@@ -433,6 +435,23 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
                 {statusMessage.text}
               </div>
             )}
+          </div>
+
+          {/* Developer Section */}
+          <div className="settings-section">
+            <h3>🐛 Developer</h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', userSelect: 'none' }}>
+                <input
+                  type="checkbox"
+                  checked={debugMode}
+                  onChange={e => onToggleDebug?.(e.target.checked)}
+                  style={{ width: 16, height: 16, cursor: 'pointer' }}
+                />
+                <span>Show debug overlay</span>
+              </label>
+            </div>
+            <p className="settings-hint">Floating panel showing vault state, FSA permission, and event log. Useful for diagnosing mobile issues.</p>
           </div>
         </div>
       </div>

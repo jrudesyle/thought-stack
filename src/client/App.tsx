@@ -6,6 +6,7 @@ import { SearchBar } from './components/SearchBar';
 import { SettingsPanel, applyTheme, loadThemePreference } from './components/SettingsPanel';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { VaultPicker } from './components/VaultPicker';
+import { DebugOverlay, debugLog } from './components/DebugOverlay';
 import {
   notebooks as notebooksApi,
   notes as notesApi,
@@ -53,6 +54,9 @@ export function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [conflictFiles, setConflictFiles] = useState<ConflictFile[]>([]);
   const [conflictBannerDismissed, setConflictBannerDismissed] = useState(false);
+  const [debugMode, setDebugMode] = useState(() => {
+    try { return localStorage.getItem('debug-overlay') === 'true'; } catch { return false; }
+  });
 
   // ── Check vault on mount ───────────────────────────────────────
 
@@ -83,6 +87,7 @@ export function App() {
         if (path) { setVaultPath(path); setVaultReady(true); }
       } catch (err) {
         console.error('Failed to check vault path:', err);
+        debugLog(`vault check error: ${(err as any)?.message ?? err}`);
         const isElectron = typeof window !== 'undefined' && typeof (window as any).electronAPI !== 'undefined';
         if (!isElectron) setVaultReady(true);
       } finally {
@@ -443,7 +448,27 @@ export function App() {
       </footer>
 
       {/* Settings Panel */}
-      <SettingsPanel open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <SettingsPanel
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        debugMode={debugMode}
+        onToggleDebug={(v) => {
+          setDebugMode(v);
+          try { localStorage.setItem('debug-overlay', String(v)); } catch {}
+        }}
+      />
+
+      {/* Debug Overlay */}
+      {debugMode && (
+        <DebugOverlay
+          vaultReady={vaultReady}
+          vaultChecked={vaultChecked}
+          needsUnlock={needsUnlock}
+          vaultPath={vaultPath}
+          refreshKey={refreshKey}
+          dataChangeKey={dataChangeKey}
+        />
+      )}
     </div>
   );
 }

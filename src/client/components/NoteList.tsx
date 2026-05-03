@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { notes as notesApi, invalidateVaultHandle, type NoteSummary } from '../api';
 import { DRAG_TYPE_NOTE } from './Sidebar';
+import { debugLog } from './DebugOverlay';
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -118,6 +119,7 @@ export function NoteList({ context, selectedNotePath, onSelectNote, onCreateNote
     } catch (err) {
       console.error('Failed to fetch notes:', err);
       const msg = err instanceof Error ? err.message : String(err);
+      debugLog(`fetchNotes err: ${msg.slice(0, 60)}`);
       // If permission was revoked, clear cached handle so reconnect can work
       if (msg.includes('No vault selected') || msg.includes('SecurityError') || msg.includes('NotAllowedError')) {
         invalidateVaultHandle();
