@@ -179,6 +179,12 @@ async function requireVault(): Promise<FileSystemDirectoryHandle> {
   return handle;
 }
 
+/** Call when a vault operation throws a security/permission error.
+ *  Clears the cached handle so the next call re-checks permission. */
+export function invalidateVaultHandle(): void {
+  _vaultHandle = null;
+}
+
 // ── File system helpers ───────────────────────────────────────────────────
 
 async function getFileHandle(

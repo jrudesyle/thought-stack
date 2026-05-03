@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Sidebar, type SidebarView } from './components/Sidebar';
 import { NoteList, type NoteListContext } from './components/NoteList';
 import { NoteEditor } from './components/NoteEditor';
@@ -105,7 +105,7 @@ export function App() {
     (async () => {
       try {
         const detected = await conflictsApi.detect();
-        if (Array.isArray(detected)) {
+        if (Array.isArray(detected) && detected.length > 0) {
           setConflictFiles(detected);
         }
       } catch (err) {
@@ -234,7 +234,7 @@ export function App() {
 
   // ── Build NoteList context ─────────────────────────────────────
 
-  const noteListContext: NoteListContext = (() => {
+  const noteListContext: NoteListContext = useMemo(() => {
     switch (activeView) {
       case 'all-notes':
         return { type: 'all-notes' as const };
@@ -249,7 +249,7 @@ export function App() {
       default:
         return { type: 'all-notes' as const };
     }
-  })();
+  }, [activeView, selectedNotebookName, selectedTagName, searchResults]);
 
   // ── View title ─────────────────────────────────────────────────
 
