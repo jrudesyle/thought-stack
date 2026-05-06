@@ -313,6 +313,8 @@ export function SettingsPanel({ open, onClose, debugMode = false, onToggleDebug 
                 <option value="serif" style={{ fontFamily: 'Lora, Georgia' }}>Lora — Elegant Serif</option>
                 <option value="editorial" style={{ fontFamily: 'Merriweather, Georgia' }}>Merriweather — Editorial</option>
                 <option value="mono" style={{ fontFamily: 'JetBrains Mono, monospace' }}>JetBrains Mono — Code</option>
+                <option value="fira-code" style={{ fontFamily: 'Fira Code, monospace' }}>Fira Code — Code &amp; Ligatures</option>
+                <option value="inconsolata" style={{ fontFamily: 'Inconsolata, monospace' }}>Inconsolata — Classic Mono</option>
                 <option value="rounded" style={{ fontFamily: 'Nunito, system-ui' }}>Nunito — Rounded &amp; Friendly</option>
               </select>
             </div>
