@@ -4,7 +4,7 @@ import { loadAIConfig, saveAIConfig, clearAIConfig, type AIProvider } from '../a
 
 // ── Theme helpers ──────────────────────────────────────────────────
 
-export type ThemePreference = 'system' | 'light' | 'dark' | 'evernote' | 'ocean' | 'warm-paper' | 'night-owl' | 'notion' | 'sunset' | 'bear' | 'obsidian' | 'linear' | 'tokyo-night' | 'solarized' | 'gruvbox' | 'github' | 'forest';
+export type ThemePreference = 'system' | 'light' | 'dark' | 'evernote' | 'ocean' | 'warm-paper' | 'night-owl' | 'notion' | 'sunset' | 'bear' | 'obsidian' | 'linear' | 'tokyo-night' | 'solarized' | 'gruvbox' | 'github' | 'forest' | 'vscode';
 
 /**
  * Apply a theme to the document. When 'system' is selected, remove the

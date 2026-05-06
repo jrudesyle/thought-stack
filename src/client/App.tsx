@@ -91,6 +91,9 @@ export function App() {
       ['sunset',      '🌅', 'Sunset',      '#7b2d00,#e8650a'],
       ['solarized',   '☀', 'Solarized',   '#073642,#268bd2'],
     ]},
+    { label: 'Dev', items: [
+      ['vscode',      '🖊', 'VS Code',     '#1e1e1e,#007acc'],
+    ]},
   ];
 
   // ── Check vault on mount ───────────────────────────────────────

@@ -3584,3 +3584,115 @@ select:focus-visible {
 .ai-replace-btn:hover {
   opacity: 0.88;
 }
+
+/* ── VS Code Theme ─────────────────────────────────────────────── */
+[data-theme="vscode"] {
+  --font-editor: 'Consolas', 'Courier New', ui-monospace, monospace;
+  --color-bg: #1e1e1e;
+  --color-surface: #252526;
+  --color-surface-raised: #2d2d2d;
+  --color-surface-sunken: #1a1a1a;
+  --color-border: #3e3e3e;
+  --color-text: #d4d4d4;
+  --color-text-secondary: #9d9d9d;
+  --color-text-muted: #6a6a6a;
+  --color-primary: #007acc;
+  --color-primary-hover: #1a8aca;
+  --color-accent: #569cd6;
+  --color-hover: #2a2d2e;
+  --color-selection: rgba(38, 79, 120, 0.7);
+  --color-active: #37373d;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.5);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.5);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.5);
+  --shadow-xl: 0 16px 48px rgba(0,0,0,0.6);
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+  --font-size-sm: 0.8125rem;
+  --font-size-base: 0.875rem;
+  --font-size-lg: 0.9375rem;
+}
+
+/* Activity bar accent strip on the sidebar */
+[data-theme="vscode"] .sidebar {
+  border-right: 1px solid #252526;
+  background: #252526;
+}
+
+/* Sidebar section headers — mimic VS Code's uppercase explorer labels */
+[data-theme="vscode"] .sidebar-section-header,
+[data-theme="vscode"] .sidebar-group-label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #bdbdbd;
+  padding: 4px 8px 2px;
+}
+
+/* Toolbar — matches VS Code title bar */
+[data-theme="vscode"] .toolbar {
+  background: #3c3c3c;
+  border-bottom: 1px solid #252526;
+}
+
+/* Note list — VS Code explorer panel */
+[data-theme="vscode"] .note-list {
+  background: #252526;
+}
+
+/* Note list items — explorer tree rows */
+[data-theme="vscode"] .note-list-item {
+  border-radius: 0;
+  padding: 4px 12px;
+}
+
+[data-theme="vscode"] .note-list-item:hover {
+  background: #2a2d2e;
+}
+
+[data-theme="vscode"] .note-list-item.selected {
+  background: #094771;
+  color: #fff;
+}
+
+/* Editor area */
+[data-theme="vscode"] .editor-pane,
+[data-theme="vscode"] .note-editor-wrapper {
+  background: #1e1e1e;
+}
+
+/* Line numbers color for code blocks */
+[data-theme="vscode"] code,
+[data-theme="vscode"] pre {
+  color: #ce9178;
+  background: #0d0d0d;
+}
+
+/* Blockquotes → info panel style */
+[data-theme="vscode"] .ProseMirror blockquote {
+  border-left: 3px solid #007acc;
+  background: #1e2a35;
+  color: #9cdcfe;
+  padding: 8px 16px;
+  border-radius: 0;
+}
+
+/* Headings — VS Code breadcrumb/symbol colors */
+[data-theme="vscode"] .ProseMirror h1 { color: #569cd6; }
+[data-theme="vscode"] .ProseMirror h2 { color: #4ec9b0; }
+[data-theme="vscode"] .ProseMirror h3 { color: #dcdcaa; }
+
+/* Status bar — VS Code blue bottom bar */
+[data-theme="vscode"] .status-bar {
+  background: #007acc;
+  color: #fff;
+  border-top: none;
+}
+
+/* Scrollbar */
+[data-theme="vscode"] ::-webkit-scrollbar { width: 10px; }
+[data-theme="vscode"] ::-webkit-scrollbar-track { background: #1e1e1e; }
+[data-theme="vscode"] ::-webkit-scrollbar-thumb { background: #424242; border-radius: 0; }
+[data-theme="vscode"] ::-webkit-scrollbar-thumb:hover { background: #555; }
