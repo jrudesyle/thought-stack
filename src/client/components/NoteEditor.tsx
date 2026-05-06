@@ -15,7 +15,6 @@ import { Placeholder } from '@tiptap/extension-placeholder';
 import { Markdown } from 'tiptap-markdown';
 import { notes as notesApi, images as imagesApi, type NoteData } from '../api';
 import { TagInput } from './TagInput';
-import { AiChat } from './AiChat';
 import { AISelectionToolbar } from './AISelectionToolbar';
 import { AiSlashCommand } from '../api/ai-slash-extension';
 import { streamChat, loadAIConfig } from '../api/ai-client';
@@ -632,13 +631,6 @@ export function NoteEditor({ notePath, onNoteSaved }: NoteEditorProps) {
           noteContext={`${title}\n\n${editor.storage.markdown?.getMarkdown?.() ?? ''}`}
         />
       )}
-
-      {/* AI Chat */}
-      <AiChat
-        noteContext={`${title}\n\n${editor?.storage.markdown?.getMarkdown?.() ?? editor?.getText() ?? ''}`}
-        onInsert={(text) => editor?.chain().focus().insertContent(text).run()}
-        onReplaceNote={(markdown) => editor?.chain().focus().setContent(markdown).run()}
-      />
     </main>
   );
 }

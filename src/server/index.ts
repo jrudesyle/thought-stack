@@ -396,6 +396,43 @@ async function handleRequest(req: http.IncomingMessage, res: http.ServerResponse
       return;
     }
 
+    // ── AI proxy (avoids mixed-content when app is served over HTTPS) ──
+
+    if (exactMatch('POST', '/api/ai/proxy', method, urlPath)) {
+      const body = await readBody(req);
+      const { targetUrl, apiKey, payload } = JSON.parse(body) as {
+        targetUrl: string;
+        apiKey?: string;
+        payload: unknown;
+      };
+
+      const upstream = await fetch(targetUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+        },
+        body: JSON.stringify(payload),
+      });
+
+      res.writeHead(upstream.status, {
+        'Content-Type': upstream.headers.get('content-type') ?? 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Cache-Control': 'no-cache',
+      });
+
+      if (upstream.body) {
+        const reader = upstream.body.getReader();
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          res.write(value);
+        }
+      }
+      res.end();
+      return;
+    }
+
     // ── 404 ──────────────────────────────────────────────────────
 
     error(res, `Not found: ${method} ${urlPath}`, 404);

@@ -177,7 +177,7 @@ async function* streamOpenClaw(
 ): AsyncGenerator<string> {
   const base = endpointUrl.replace(/\/+$/, '');
   const url = base.endsWith('/chat/completions') ? base : `${base}/chat/completions`;
-  yield* streamOpenAICompat(messages, noteContext, url, apiKey, model ?? 'llama3');
+  yield* streamOpenAICompat(messages, noteContext, url, apiKey, model ?? 'openclaw');
 }
 
 // ── Public API ─────────────────────────────────────────────────────
