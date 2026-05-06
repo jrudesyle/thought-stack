@@ -122,8 +122,37 @@ let _vaultHandle: FileSystemDirectoryHandle | null = null;
 // (Android Chrome revokes user-gesture activation after the first await).
 let _pendingHandle: FileSystemDirectoryHandle | null = null;
 
+// OPFS mode: used on browsers that lack showDirectoryPicker (iOS Safari, Firefox)
+// but support the Origin Private File System (navigator.storage.getDirectory).
+let _opfsMode = false;
+
+/** Returns true if OPFS is available but FSA picker is not (i.e. mobile Safari, Firefox). */
+export function isOPFSAvailable(): boolean {
+  return (
+    typeof window !== 'undefined' &&
+    typeof (window as any).showDirectoryPicker !== 'function' &&
+    typeof navigator !== 'undefined' &&
+    typeof navigator.storage?.getDirectory === 'function'
+  );
+}
+
+/** Initialise the vault using OPFS. Safe to call multiple times; idempotent. */
+export async function initOPFS(): Promise<void> {
+  if (_vaultHandle) return;
+  const root = await navigator.storage.getDirectory();
+  // Store notes inside a named subdirectory so OPFS root stays clean
+  _vaultHandle = await root.getDirectoryHandle('thoughtstack-vault', { create: true });
+  _opfsMode = true;
+  await idbSet(SETTINGS_KEY, { ...DEFAULT_SETTINGS, vaultPath: 'OPFS' });
+}
+
 async function getVaultHandle(): Promise<FileSystemDirectoryHandle | null> {
   if (_vaultHandle) return _vaultHandle;
+  // In OPFS mode, auto-init instead of looking for a stored FSA handle
+  if (_opfsMode) {
+    await initOPFS();
+    return _vaultHandle;
+  }
   const stored = await idbGet<FileSystemDirectoryHandle>(HANDLE_KEY);
   if (!stored) return null;
 
@@ -140,6 +169,7 @@ async function getVaultHandle(): Promise<FileSystemDirectoryHandle | null> {
 /** Returns true if a vault handle is stored in IDB, even if permission needs re-granting.
  *  Also pre-caches the handle so reconnectVault() can skip the IDB await. */
 export async function hasStoredVault(): Promise<boolean> {
+  if (_opfsMode) return true; // OPFS vault is always "stored"
   const stored = await idbGet<FileSystemDirectoryHandle>(HANDLE_KEY);
   if (stored !== undefined && stored !== null) {
     _pendingHandle = stored;
@@ -152,6 +182,10 @@ export async function hasStoredVault(): Promise<boolean> {
  *  Uses the pre-cached handle so requestPermission is the FIRST await, preserving
  *  the browser's user-gesture activation window (critical on Android Chrome). */
 export async function reconnectVault(): Promise<boolean> {
+  if (_opfsMode) {
+    await initOPFS();
+    return _vaultHandle !== null;
+  }
   const handle = _pendingHandle ?? await idbGet<FileSystemDirectoryHandle>(HANDLE_KEY);
   if (!handle) return false;
   try {
@@ -182,6 +216,7 @@ async function requireVault(): Promise<FileSystemDirectoryHandle> {
 /** Call when a vault operation throws a security/permission error.
  *  Clears the cached handle so the next call re-checks permission. */
 export function invalidateVaultHandle(): void {
+  if (_opfsMode) return; // OPFS doesn't need permission re-grants
   _vaultHandle = null;
 }
 
@@ -980,6 +1015,7 @@ export const conflicts = {
 /** Returns true if a vault handle is already stored and accessible. */
 export async function isVaultReady(): Promise<boolean> {
   try {
+    if (_opfsMode) return _vaultHandle !== null;
     const handle = await getVaultHandle();
     return handle !== null;
   } catch {

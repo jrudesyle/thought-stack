@@ -15,6 +15,8 @@ import {
   isVaultReady,
   hasStoredVault,
   reconnectVault,
+  isOPFSAvailable,
+  initOPFS,
   type SearchResult,
   type NoteSummary,
   type ConflictFile,
@@ -112,6 +114,15 @@ export function App() {
             if (stored) setNeedsUnlock(true);
             // else: no vault at all → show VaultPicker
           }
+          return;
+        }
+
+        // OPFS mode: iOS Safari, Firefox — no directory picker but OPFS is available.
+        // Auto-initialise silently; user never needs to pick a folder.
+        if (!isTauri && !isElectron && isOPFSAvailable()) {
+          await initOPFS();
+          setVaultPath('OPFS');
+          setVaultReady(true);
           return;
         }
 
