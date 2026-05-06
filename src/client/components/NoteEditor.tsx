@@ -85,7 +85,9 @@ export function NoteEditor({ notePath, onNoteSaved }: NoteEditorProps) {
   const [loading, setLoading]         = useState(false);
   const [loadError, setLoadError]     = useState<string | null>(null);
   const [retryKey, setRetryKey]       = useState(0);
-  const [toolbarOpen, setToolbarOpen] = useState(false);
+  const [toolbarOpen, setToolbarOpen] = useState(() => {
+    try { return localStorage.getItem('toolbar-open') === 'true'; } catch { return false; }
+  });
   const [aiSlashBusy, setAiSlashBusy] = useState(false);
   const [aiSlashLabel, setAiSlashLabel] = useState('');
   const [aiSlashIntent, setAiSlashIntent] = useState<AiIntent>('replace');
@@ -448,17 +450,9 @@ export function NoteEditor({ notePath, onNoteSaved }: NoteEditorProps) {
 
   return (
     <main className="editor-panel" aria-label="Note editor">
-      {/* Mobile toolbar toggle */}
-      <button
-        className="editor-toolbar-toggle"
-        onClick={() => setToolbarOpen(o => !o)}
-        aria-label={toolbarOpen ? 'Hide formatting' : 'Show formatting'}
-      >
-        ✏️ {toolbarOpen ? 'Hide Formatting' : 'Show Formatting'}
-      </button>
-
-      {/* Editor Toolbar */}
-      <div className={`editor-toolbar${toolbarOpen ? ' editor-toolbar--mobile-open' : ''}`} role="toolbar" aria-label="Formatting toolbar">
+      {/* Formatting toolbar — collapsible on all screen sizes */}
+      <div className={`editor-toolbar-row${toolbarOpen ? ' editor-toolbar-row--open' : ''}`}>
+        <div className="editor-toolbar" role="toolbar" aria-label="Formatting toolbar">
         <button
           className={`editor-toolbar-btn ${editor?.isActive('bold') ? 'editor-toolbar-btn--active' : ''}`}
           onClick={() => editor?.chain().focus().toggleBold().run()}
@@ -599,7 +593,35 @@ export function NoteEditor({ notePath, onNoteSaved }: NoteEditorProps) {
         >
           📊
         </button>
-      </div>
+        {/* Toggle button lives inside the row, pinned right */}
+        <button
+          className="editor-toolbar-toggle"
+          onClick={() => {
+            const next = !toolbarOpen;
+            setToolbarOpen(next);
+            try { localStorage.setItem('toolbar-open', String(next)); } catch {}
+          }}
+          aria-label={toolbarOpen ? 'Hide formatting toolbar' : 'Show formatting toolbar'}
+          title={toolbarOpen ? 'Hide formatting' : 'Show formatting'}
+        >
+          {toolbarOpen ? '✕' : 'Aa'}
+        </button>
+        </div>{/* end .editor-toolbar */}
+      </div>{/* end .editor-toolbar-row */}
+      {/* Collapsed toggle shown when toolbar is hidden */}
+      {!toolbarOpen && (
+        <button
+          className="editor-toolbar-show-btn"
+          onClick={() => {
+            setToolbarOpen(true);
+            try { localStorage.setItem('toolbar-open', 'true'); } catch {}
+          }}
+          aria-label="Show formatting toolbar"
+          title="Show formatting"
+        >
+          Aa
+        </button>
+      )}
 
       {/* Title + inline tag chip */}
       <div className="editor-title-area">

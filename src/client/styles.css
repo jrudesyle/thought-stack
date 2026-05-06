@@ -1015,18 +1015,72 @@ input, select, textarea {
    EDITOR TOOLBAR — Native-feel formatting bar
    ═══════════════════════════════════════════════════════════════════ */
 
+/* Wrapper row — always rendered; hides/shows the inner toolbar via overflow */
+.editor-toolbar-row {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height 0.2s ease;
+  background: var(--color-toolbar-bg);
+  border-bottom: none;
+  position: relative;
+}
+
+.editor-toolbar-row--open {
+  max-height: 88px; /* enough for two wrapped rows */
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
 .editor-toolbar {
   display: flex;
   align-items: center;
   gap: 2px;
   padding: var(--spacing-sm) var(--spacing-md);
-  border-bottom: 1px solid var(--color-border-subtle);
-  background: var(--color-toolbar-bg);
+  background: transparent;
   backdrop-filter: blur(16px) saturate(160%);
   -webkit-backdrop-filter: blur(16px) saturate(160%);
   flex-shrink: 0;
   flex-wrap: wrap;
+  flex: 1;
+  min-width: 0;
 }
+
+/* "Aa" dismiss button inside the open toolbar row */
+.editor-toolbar-toggle {
+  flex-shrink: 0;
+  margin-right: 8px;
+  padding: 3px 8px;
+  border-radius: 99px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  cursor: pointer;
+  line-height: 1;
+  transition: opacity 0.15s;
+  white-space: nowrap;
+}
+.editor-toolbar-toggle:hover { opacity: 0.7; }
+
+/* Small "Aa" pill shown at top-right when toolbar is hidden */
+.editor-toolbar-show-btn {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  padding: 2px 8px;
+  border-radius: 99px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-size: 0.7rem;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: opacity 0.15s;
+  z-index: 10;
+}
+.editor-toolbar-show-btn:hover { opacity: 1; }
+
 
 .editor-toolbar-btn {
   display: flex;
@@ -3055,39 +3109,11 @@ select:focus-visible {
   --shadow-lg: 0 12px 40px rgba(0,0,0,0.7);
 }
 
-/* ── Mobile: collapsible formatting toolbar ───────────────────── */
+/* ── Mobile: toolbar-row needs enough max-height for wrapped buttons ── */
 @media (max-width: 768px) {
-  .editor-toolbar {
-    display: none;
-    flex-wrap: wrap;
-    gap: 2px;
-    padding: 4px 8px;
+  .editor-toolbar-row--open {
+    max-height: 120px;
   }
-
-  .editor-toolbar--mobile-open {
-    display: flex;
-  }
-
-  .editor-toolbar-toggle {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 12px;
-    background: var(--color-surface);
-    border-bottom: 1px solid var(--color-border);
-    font-size: 0.85rem;
-    color: var(--color-text-secondary);
-    cursor: pointer;
-    border: none;
-    border-bottom: 1px solid var(--color-border);
-    width: 100%;
-    text-align: left;
-  }
-}
-
-/* Hide the toggle button on desktop */
-.editor-toolbar-toggle {
-  display: none;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
