@@ -278,7 +278,7 @@
 
 html, body {
   height: 100%;
-  font-family: var(--font-family);
+  font-family: var(--font-editor);
   font-size: var(--font-size-base);
   color: var(--color-text);
   background: var(--color-bg);
