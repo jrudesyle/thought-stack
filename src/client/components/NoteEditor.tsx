@@ -17,7 +17,7 @@ import { notes as notesApi, images as imagesApi, type NoteData } from '../api';
 import { TagInput } from './TagInput';
 import { AISelectionToolbar } from './AISelectionToolbar';
 import { AiSlashCommand } from '../api/ai-slash-extension';
-import { streamChat, loadAIConfig } from '../api/ai-client';
+import { streamChat, loadAIConfig, classifyAiInstruction, type AiIntent } from '../api/ai-client';
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -88,6 +88,8 @@ export function NoteEditor({ notePath, onNoteSaved }: NoteEditorProps) {
   const [toolbarOpen, setToolbarOpen] = useState(false);
   const [aiSlashBusy, setAiSlashBusy] = useState(false);
   const [aiSlashLabel, setAiSlashLabel] = useState('');
+  const [aiSlashIntent, setAiSlashIntent] = useState<AiIntent>('replace');
+  const [aiAnswer, setAiAnswer] = useState<{ text: string; insertPos: number } | null>(null);
   const titleRef              = useRef<HTMLInputElement>(null);
   const saveTimerRef          = useRef<ReturnType<typeof setTimeout> | null>(null);
   const currentNotePathRef    = useRef<string | null>(null);
@@ -176,9 +178,13 @@ export function NoteEditor({ notePath, onNoteSaved }: NoteEditorProps) {
     const config = loadAIConfig();
     if (!config || !editor) return;
 
+    const intent = classifyAiInstruction(instruction);
     setAiSlashBusy(true);
+    setAiSlashIntent(intent);
     setAiSlashLabel(instruction.length > 30 ? instruction.slice(0, 30) + '…' : instruction);
+    setAiAnswer(null);
 
+    // Always remove the /ai ... line first
     editor.chain().focus().deleteRange({ from, to }).run();
 
     try {
@@ -192,7 +198,17 @@ export function NoteEditor({ notePath, onNoteSaved }: NoteEditorProps) {
         result += chunk;
       }
       result = result.trim();
-      if (result) {
+      if (!result) return;
+
+      if (intent === 'question') {
+        // Show answer in popup — don't touch note content
+        setAiAnswer({ text: result, insertPos: from });
+      } else if (intent === 'append') {
+        // Insert after the last character of the document
+        const end = editor.state.doc.content.size;
+        editor.chain().focus().insertContentAt(end, '\n' + result).run();
+      } else {
+        // replace: insert at the position the /ai line was
         editor.chain().focus().insertContentAt(from, result).run();
       }
     } catch (err: any) {
@@ -611,8 +627,32 @@ export function NoteEditor({ notePath, onNoteSaved }: NoteEditorProps) {
         <EditorContent editor={editor} />
         {/* /ai busy indicator */}
         {aiSlashBusy && (
-          <div className="ai-slash-busy">
-            <span className="ai-selection-spinner">✨</span> AI writing: <em>{aiSlashLabel}</em>
+          <div className={`ai-slash-busy ai-slash-busy--${aiSlashIntent}`}>
+            <span className="ai-selection-spinner">✨</span>
+            {aiSlashIntent === 'question' && <span>Answering: </span>}
+            {aiSlashIntent === 'append'   && <span>Appending: </span>}
+            {aiSlashIntent === 'replace'  && <span>Rewriting: </span>}
+            <em>{aiSlashLabel}</em>
+          </div>
+        )}
+        {/* Question answer popup */}
+        {aiAnswer && (
+          <div className="ai-answer-popup">
+            <div className="ai-answer-popup__header">
+              <span>✨ Answer</span>
+              <button className="ai-answer-popup__close" onClick={() => setAiAnswer(null)} title="Dismiss">✕</button>
+            </div>
+            <div className="ai-answer-popup__body">{aiAnswer.text}</div>
+            <div className="ai-answer-popup__actions">
+              <button
+                className="ai-answer-popup__insert"
+                onClick={() => {
+                  editor?.chain().focus().insertContentAt(aiAnswer.insertPos, aiAnswer.text).run();
+                  setAiAnswer(null);
+                }}
+              >Insert into note</button>
+              <button className="ai-answer-popup__dismiss" onClick={() => setAiAnswer(null)}>Dismiss</button>
+            </div>
           </div>
         )}
       </div>

@@ -182,6 +182,21 @@ async function* streamOpenClaw(
 
 // ── Public API ─────────────────────────────────────────────────────
 
+export type AiIntent = 'replace' | 'append' | 'question';
+
+/** Classify a /ai instruction into replace, append, or question. */
+export function classifyAiInstruction(instruction: string): AiIntent {
+  const lower = instruction.toLowerCase().trim();
+  if (lower.endsWith('?')) return 'question';
+  const questionStarters = ['what ', 'how ', 'why ', 'when ', 'where ', 'who ', 'is ', 'are ',
+    'can ', 'does ', 'will ', 'should ', 'would ', 'could ', 'do ', 'did ', 'explain '];
+  if (questionStarters.some(s => lower.startsWith(s))) return 'question';
+  const appendWords = ['add ', 'append', 'insert', 'write a new', 'create a new',
+    'new paragraph', 'new section', 'below', 'after this', 'at the end'];
+  if (appendWords.some(w => lower.includes(w))) return 'append';
+  return 'replace';
+}
+
 export async function* streamChat(
   messages: ChatMessage[],
   noteContext: string,
