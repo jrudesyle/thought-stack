@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { resolveVaultPath } from './index';
 import { softDelete } from './trash';
+import { readIgnorePatterns, addIgnorePattern, isIgnored } from './ignore';
 
 export interface NotebookInfo {
   name: string;
@@ -9,6 +10,8 @@ export interface NotebookInfo {
   stack: string | null;
   noteCount: number;
 }
+
+export { addIgnorePattern };
 
 const EXCLUDED_DIRS = new Set(['.thoughtstack', '.trash', '.images']);
 
@@ -131,6 +134,7 @@ export function moveNotebook(
  */
 export function listNotebooks(vaultPath: string): NotebookInfo[] {
   const resolved = resolveVaultPath(vaultPath);
+  const ignorePatterns = readIgnorePatterns(resolved);
   const results: NotebookInfo[] = [];
 
   const entries = fs.readdirSync(resolved, { withFileTypes: true });
@@ -138,6 +142,7 @@ export function listNotebooks(vaultPath: string): NotebookInfo[] {
     if (!entry.isDirectory()) continue;
     if (EXCLUDED_DIRS.has(entry.name)) continue;
     if (entry.name.startsWith('.')) continue;
+    if (isIgnored(ignorePatterns, entry.name)) continue;
 
     const dirPath = path.join(resolved, entry.name);
 
@@ -150,7 +155,6 @@ export function listNotebooks(vaultPath: string): NotebookInfo[] {
     );
 
     if (hasMdFiles || !hasSubDirs) {
-      // It's a notebook (or empty directory treated as notebook)
       results.push({
         name: entry.name,
         path: entry.name,
@@ -165,9 +169,10 @@ export function listNotebooks(vaultPath: string): NotebookInfo[] {
         if (!subEntry.isDirectory()) continue;
         if (subEntry.name.startsWith('.')) continue;
 
-        const subDirPath = path.join(dirPath, subEntry.name);
-        const relPath = path.join(entry.name, subEntry.name);
+        const relPath = path.join(entry.name, subEntry.name).replace(/\\/g, '/');
+        if (isIgnored(ignorePatterns, relPath)) continue;
 
+        const subDirPath = path.join(dirPath, subEntry.name);
         results.push({
           name: subEntry.name,
           path: relPath,

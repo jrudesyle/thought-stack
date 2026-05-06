@@ -33,6 +33,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     delete: (notebookPath: string) => ipcRenderer.invoke('notebooks:delete', notebookPath),
     move: (notebookPath: string, targetStack?: string) =>
       ipcRenderer.invoke('notebooks:move', notebookPath, targetStack),
+    ignore: (notebookPath: string) => ipcRenderer.invoke('notebooks:ignore', notebookPath),
   },
   tags: {
     list: () => ipcRenderer.invoke('tags:list'),

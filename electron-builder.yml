@@ -1,5 +1,6 @@
 appId: com.thoughtstack.app
 productName: ThoughtStack
+icon: src/client/public/icon.svg
 
 directories:
   output: release

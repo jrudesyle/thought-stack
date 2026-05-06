@@ -5,6 +5,7 @@ import {
   renameNotebook,
   deleteNotebook,
   moveNotebook,
+  addIgnorePattern,
 } from '../vault/notebooks';
 
 /**
@@ -47,6 +48,15 @@ export function registerNotebookHandlers(getVaultPath: () => string): void {
   ipcMain.handle('notebooks:move', async (_event, notebookPath: string, targetStack?: string) => {
     try {
       return moveNotebook(getVaultPath(), notebookPath, targetStack);
+    } catch (err) {
+      return { error: err instanceof Error ? err.message : String(err) };
+    }
+  });
+
+  ipcMain.handle('notebooks:ignore', async (_event, notebookPath: string) => {
+    try {
+      addIgnorePattern(getVaultPath(), notebookPath);
+      return { success: true };
     } catch (err) {
       return { error: err instanceof Error ? err.message : String(err) };
     }

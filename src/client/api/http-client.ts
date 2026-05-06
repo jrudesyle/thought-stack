@@ -208,6 +208,13 @@ export const notebooks = {
     // Not exposed via HTTP server yet — stub for interface compatibility
     throw new Error('notebooks.move() is not available in HTTP mode');
   },
+
+  ignore(notebookPath: string): Promise<boolean> {
+    return request<{ success: boolean }>('/api/notebooks/ignore', {
+      method: 'POST',
+      body: JSON.stringify({ notebookPath }),
+    }).then(r => r.success);
+  },
 };
 
 // ── Tags API ───────────────────────────────────────────────────────

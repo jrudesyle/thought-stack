@@ -7,6 +7,7 @@ import { sanitizeFilename, resolveFilenameConflict, titleFromFilename } from './
 import { softDelete } from './trash';
 import { extractImageReferences, moveImages } from './images';
 import { withRetrySync } from './retry';
+import { readIgnorePatterns, isIgnored } from './ignore';
 
 export interface NoteData {
   id: string;
@@ -215,10 +216,12 @@ export function listNotes(
     }
   } else {
     // List notes across all notebooks
+    const ignorePatterns = readIgnorePatterns(resolved);
     const entries = fs.readdirSync(resolved, { withFileTypes: true });
     for (const entry of entries) {
       if (!entry.isDirectory()) continue;
       if (['.thoughtstack', '.trash', '.images'].includes(entry.name)) continue;
+      if (isIgnored(ignorePatterns, entry.name)) continue;
 
       const notebookDir = path.join(resolved, entry.name);
       collectNotes(resolved, notebookDir, results);
@@ -228,6 +231,8 @@ export function listNotes(
       for (const subEntry of subEntries) {
         if (!subEntry.isDirectory()) continue;
         if (subEntry.name.startsWith('.')) continue;
+        const relPath = (entry.name + '/' + subEntry.name);
+        if (isIgnored(ignorePatterns, relPath)) continue;
         const subDir = path.join(notebookDir, subEntry.name);
         collectNotes(resolved, subDir, results);
       }

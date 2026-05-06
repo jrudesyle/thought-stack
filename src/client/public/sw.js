@@ -6,7 +6,7 @@
  *   - API data requests: network-first with offline fallback (503 + offline flag)
  */
 
-const CACHE_NAME = 'note-app-v3';
+const CACHE_NAME = 'note-app-v5';
 
 // App shell files to pre-cache on install
 const APP_SHELL = [

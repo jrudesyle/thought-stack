@@ -1,6 +1,11 @@
 {
   "name": "thoughtstack",
   "version": "1.0.0",
+  "description": "Thought Stack — personal knowledge manager",
+  "author": {
+    "name": "Jeff Rudesyle",
+    "email": "jeff.rudesyle@realtimemed.com"
+  },
   "private": true,
   "type": "module",
   "workspaces": [
@@ -26,6 +31,7 @@
   },
   "devDependencies": {
     "@electron/rebuild": "^3.7.1",
+    "@playwright/test": "^1.59.1",
     "@tauri-apps/cli": "^2.11.0",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^25.6.0",

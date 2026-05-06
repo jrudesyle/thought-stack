@@ -216,6 +216,10 @@ export const notebooks = {
   move(notebookPath: string, targetStack?: string): Promise<NotebookInfo> {
     return api.notebooks.move(notebookPath, targetStack);
   },
+
+  ignore(notebookPath: string): Promise<boolean> {
+    return api.notebooks.ignore(notebookPath);
+  },
 };
 
 // ── Tags API ───────────────────────────────────────────────────────

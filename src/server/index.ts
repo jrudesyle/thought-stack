@@ -18,7 +18,7 @@ import { URL } from 'node:url';
 
 import { resolveVaultPath, initializeVault } from '../../electron/vault/index';
 import { createNote, getNote, saveNote, listNotes, deleteNote, moveNote, duplicateNote } from '../../electron/vault/notes';
-import { listNotebooks, createNotebook, renameNotebook, deleteNotebook } from '../../electron/vault/notebooks';
+import { listNotebooks, createNotebook, renameNotebook, deleteNotebook, addIgnorePattern } from '../../electron/vault/notebooks';
 import { saveImage } from '../../electron/vault/images';
 import { restore, permanentDelete, emptyTrash } from '../../electron/vault/trash';
 import { detectConflicts } from '../../electron/vault/conflicts';
@@ -279,6 +279,13 @@ async function handleRequest(req: http.IncomingMessage, res: http.ServerResponse
       const nbPath = extractPath(urlPath, '/api/notebooks/');
       const result = deleteNotebook(vaultPath, nbPath);
       return json(res, { success: result });
+    }
+
+    if (exactMatch('POST', '/api/notebooks/ignore', method, urlPath)) {
+      const body = await parseJson(req);
+      const notebookPath = body.notebookPath as string;
+      addIgnorePattern(vaultPath, notebookPath);
+      return json(res, { success: true });
     }
 
     // ── Tags ─────────────────────────────────────────────────────

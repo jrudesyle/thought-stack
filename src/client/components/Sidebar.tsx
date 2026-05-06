@@ -130,6 +130,23 @@ export function Sidebar({
     closeContextMenu();
   };
 
+  const handleIgnore = async () => {
+    if (!contextMenu) return;
+    const { type, name, path } = contextMenu;
+    closeContextMenu();
+
+    const target = type === 'notebook' ? (path ?? name) : name;
+    if (!confirm(`Ignore "${name}"? It will be hidden from ThoughtStack but files won't be deleted.`)) return;
+
+    try {
+      await notebooksApi.ignore(target);
+      fetchData();
+      onDataChange?.();
+    } catch (err) {
+      console.error(`Failed to ignore ${type}:`, err);
+    }
+  };
+
   const handleDelete = async () => {
     if (!contextMenu) return;
     const { type, name, path } = contextMenu;
@@ -432,6 +449,11 @@ export function Sidebar({
           <button className="context-menu-item" role="menuitem" onClick={handleRename}>
             ✏️ Rename
           </button>
+          {contextMenu.type !== 'tag' && (
+            <button className="context-menu-item" role="menuitem" onClick={handleIgnore}>
+              🚫 Ignore
+            </button>
+          )}
           <button className="context-menu-item context-menu-item--danger" role="menuitem" onClick={handleDelete}>
             🗑️ Delete
           </button>
