@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Sidebar, type SidebarView } from './components/Sidebar';
 import { NoteList, type NoteListContext } from './components/NoteList';
 import { NoteEditor } from './components/NoteEditor';
 import { SearchBar } from './components/SearchBar';
-import { SettingsPanel, applyTheme, loadThemePreference } from './components/SettingsPanel';
+import { SettingsPanel, applyTheme, loadThemePreference, saveThemePreference, type ThemePreference } from './components/SettingsPanel';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { VaultPicker } from './components/VaultPicker';
 import { DebugOverlay, debugLog } from './components/DebugOverlay';
@@ -58,6 +58,39 @@ export function App() {
     try { return localStorage.getItem('debug-overlay') === 'true'; } catch { return false; }
   });
 
+  // Theme state (owned here so dropdown lives in toolbar)
+  const [theme, setTheme] = useState<ThemePreference>('system');
+  const [themeDropOpen, setThemeDropOpen] = useState(false);
+  const themeDropRef = useRef<HTMLDivElement>(null);
+
+  const THEME_GROUPS: { label: string; items: [ThemePreference, string, string, string][] }[] = [
+    { label: 'System', items: [
+      ['system',      '🖥', 'System',     '#888,#ccc'],
+      ['light',       '☀', 'Light',       '#f5f5f5,#fff'],
+      ['dark',        '🌙', 'Dark',        '#1a1816,#2e2a28'],
+    ]},
+    { label: 'Apps', items: [
+      ['notion',      '◻', 'Notion',      '#f7f6f3,#37352f'],
+      ['bear',        '🐻', 'Bear',        '#fefefe,#e84041'],
+      ['evernote',    '🐘', 'Evernote',    '#2d2d2d,#00a82d'],
+      ['github',      '🐙', 'GitHub',      '#f6f8fa,#0969da'],
+      ['linear',      '⚡', 'Linear',      '#0f0f11,#5e6ad2'],
+      ['obsidian',    '💜', 'Obsidian',    '#1e1e1e,#7c3aed'],
+    ]},
+    { label: 'Colors', items: [
+      ['ocean',       '🌊', 'Ocean',       '#0b4a7a,#0077cc'],
+      ['tokyo-night', '🌃', 'Tokyo Night', '#1a1b2e,#f7768e'],
+      ['forest',      '🌿', 'Forest',      '#101810,#4ade80'],
+      ['night-owl',   '🦉', 'Night Owl',   '#011627,#82aaff'],
+      ['gruvbox',     '🟠', 'Gruvbox',     '#282828,#fabd2f'],
+    ]},
+    { label: 'Warm', items: [
+      ['warm-paper',  '📜', 'Warm Paper',  '#3d2b1f,#b5531a'],
+      ['sunset',      '🌅', 'Sunset',      '#7b2d00,#e8650a'],
+      ['solarized',   '☀', 'Solarized',   '#073642,#268bd2'],
+    ]},
+  ];
+
   // ── Check vault on mount ───────────────────────────────────────
 
   useEffect(() => {
@@ -99,9 +132,25 @@ export function App() {
   // ── Load theme preference on mount ─────────────────────────────
 
   useEffect(() => {
-    loadThemePreference().then(applyTheme);
+    loadThemePreference().then(t => { setTheme(t); applyTheme(t); });
     const storedFont = localStorage.getItem('font-preference') ?? 'system';
     if (storedFont !== 'system') document.documentElement.setAttribute('data-font', storedFont);
+  }, []);
+
+  const handleThemeChange = useCallback(async (t: ThemePreference) => {
+    setTheme(t);
+    applyTheme(t);
+    await saveThemePreference(t);
+    setThemeDropOpen(false);
+  }, []);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (themeDropRef.current && !themeDropRef.current.contains(e.target as Node))
+        setThemeDropOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
   }, []);
 
   // ── Detect cloud sync conflicts when vault is ready ────────────
@@ -360,6 +409,50 @@ export function App() {
             isSearchActive={activeView === 'search'}
           />
         </div>
+        {/* Theme dropdown */}
+        {(() => {
+          const allThemes = THEME_GROUPS.flatMap(g => g.items);
+          const current = allThemes.find(([t]) => t === theme) ?? allThemes[0];
+          const [, icon, , swatches] = current;
+          const [s1, s2] = swatches.split(',');
+          return (
+            <div className="toolbar-theme-dropdown" ref={themeDropRef}>
+              <button
+                className="toolbar-theme-trigger toolbar-btn"
+                onClick={() => setThemeDropOpen(o => !o)}
+                title="Switch theme"
+                aria-label="Switch theme"
+              >
+                <span className="toolbar-theme-swatch" style={{ background: `linear-gradient(135deg, ${s1} 50%, ${s2} 50%)` }} />
+                <span style={{ fontSize: '0.9em' }}>{icon}</span>
+              </button>
+              {themeDropOpen && (
+                <div className="settings-theme-dropdown__menu toolbar-theme-menu">
+                  {THEME_GROUPS.map(group => (
+                    <React.Fragment key={group.label}>
+                      <div className="settings-theme-dropdown__group-label">{group.label}</div>
+                      {group.items.map(([t, ico, lbl, sw]) => {
+                        const [c1, c2] = sw.split(',');
+                        return (
+                          <button
+                            key={t}
+                            className={`settings-theme-dropdown__item${theme === t ? ' settings-theme-dropdown__item--active' : ''}`}
+                            onClick={() => handleThemeChange(t)}
+                          >
+                            <span className="settings-theme-swatch" style={{ background: `linear-gradient(135deg, ${c1} 50%, ${c2} 50%)` }} />
+                            <span>{ico}</span>
+                            <span>{lbl}</span>
+                            {theme === t && <span style={{ marginLeft: 'auto', color: 'var(--color-primary)' }}>✓</span>}
+                          </button>
+                        );
+                      })}
+                    </React.Fragment>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })()}
         <div className="toolbar-actions">
           <button className="toolbar-btn" onClick={handleCreateNote} aria-label="New note" title="New note">
             ✚

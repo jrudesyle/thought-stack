@@ -65,10 +65,7 @@ interface SettingsPanelProps {
 }
 
 export function SettingsPanel({ open, onClose, debugMode = false, onToggleDebug }: SettingsPanelProps) {
-  const [theme, setTheme] = useState<ThemePreference>('system');
   const [font, setFont] = useState<string>('system');
-  const [themeDropOpen, setThemeDropOpen] = useState(false);
-  const themeDropRef = useRef<HTMLDivElement>(null);
   const [vaultPath, setVaultPath] = useState<string>('');
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
@@ -85,11 +82,8 @@ export function SettingsPanel({ open, onClose, debugMode = false, onToggleDebug 
   useEffect(() => {
     if (!open) return;
 
-    loadThemePreference().then(setTheme);
-
     const storedFont = localStorage.getItem('font-preference') ?? 'system';
     setFont(storedFont);
-    if (storedFont !== 'system') document.documentElement.setAttribute('data-font', storedFont);
 
     const cfg = loadAIConfig();
     if (cfg) {
@@ -176,27 +170,11 @@ export function SettingsPanel({ open, onClose, debugMode = false, onToggleDebug 
 
   // ── Theme selection ──────────────────────────────────────────────
 
-  const handleThemeChange = useCallback(async (newTheme: ThemePreference) => {
-    setTheme(newTheme);
-    applyTheme(newTheme);
-    await saveThemePreference(newTheme);
-  }, []);
-
   const handleFontChange = useCallback((newFont: string) => {
     setFont(newFont);
     if (newFont === 'system') document.documentElement.removeAttribute('data-font');
     else document.documentElement.setAttribute('data-font', newFont);
     localStorage.setItem('font-preference', newFont);
-  }, []);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (themeDropRef.current && !themeDropRef.current.contains(e.target as Node)) {
-        setThemeDropOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
   }, []);
 
   // ── Vault path change ────────────────────────────────────────────
@@ -310,84 +288,9 @@ export function SettingsPanel({ open, onClose, debugMode = false, onToggleDebug 
             </div>
           </div>
 
-          {/* Theme + Font Section */}
+          {/* Font Section */}
           <div className="settings-section">
-            <h3>Theme</h3>
-            {(() => {
-              const THEME_GROUPS: { label: string; items: [ThemePreference, string, string, string][] }[] = [
-                { label: 'System', items: [
-                  ['system',      '🖥', 'System',      '#888,#fff'],
-                  ['light',       '☀', 'Light',        '#f5f5f5,#fff'],
-                  ['dark',        '🌙', 'Dark',         '#1a1816,#2e2a28'],
-                ]},
-                { label: 'Apps', items: [
-                  ['notion',      '◻', 'Notion',       '#f7f6f3,#37352f'],
-                  ['bear',        '🐻', 'Bear',         '#fefefe,#e84041'],
-                  ['evernote',    '🐘', 'Evernote',     '#2d2d2d,#00a82d'],
-                  ['github',      '🐙', 'GitHub',       '#f6f8fa,#0969da'],
-                  ['linear',      '⚡', 'Linear',       '#0f0f11,#5e6ad2'],
-                  ['obsidian',    '💜', 'Obsidian',     '#1e1e1e,#7c3aed'],
-                ]},
-                { label: 'Colors', items: [
-                  ['ocean',       '🌊', 'Ocean',        '#0b4a7a,#0077cc'],
-                  ['tokyo-night', '🌃', 'Tokyo Night',  '#1a1b2e,#f7768e'],
-                  ['forest',      '🌿', 'Forest',       '#101810,#4ade80'],
-                  ['night-owl',   '🦉', 'Night Owl',    '#011627,#82aaff'],
-                  ['gruvbox',     '🟠', 'Gruvbox',      '#282828,#fabd2f'],
-                ]},
-                { label: 'Warm', items: [
-                  ['warm-paper',  '📜', 'Warm Paper',   '#3d2b1f,#b5531a'],
-                  ['sunset',      '🌅', 'Sunset',       '#7b2d00,#e8650a'],
-                  ['solarized',   '☀', 'Solarized',    '#073642,#268bd2'],
-                ]},
-              ];
-
-              const allThemes = THEME_GROUPS.flatMap(g => g.items);
-              const current = allThemes.find(([t]) => t === theme);
-              const [,icon, label] = current ?? ['system','🖥','System','#888,#fff'];
-
-              return (
-                <div className="settings-theme-dropdown" ref={themeDropRef}>
-                  <button
-                    className="settings-theme-dropdown__trigger"
-                    onClick={() => setThemeDropOpen(o => !o)}
-                  >
-                    <span style={{ fontSize: '1.1em' }}>{icon}</span>
-                    <span>{label}</span>
-                    <span className={`settings-theme-dropdown__arrow${themeDropOpen ? ' settings-theme-dropdown__arrow--open' : ''}`}>▼</span>
-                  </button>
-                  {themeDropOpen && (
-                    <div className="settings-theme-dropdown__menu">
-                      {THEME_GROUPS.map(group => (
-                        <React.Fragment key={group.label}>
-                          <div className="settings-theme-dropdown__group-label">{group.label}</div>
-                          {group.items.map(([t, icon, lbl, swatches]) => {
-                            const [s1, s2] = swatches.split(',');
-                            return (
-                              <button
-                                key={t}
-                                className={`settings-theme-dropdown__item${theme === t ? ' settings-theme-dropdown__item--active' : ''}`}
-                                onClick={() => { handleThemeChange(t); setThemeDropOpen(false); }}
-                              >
-                                <span
-                                  className="settings-theme-swatch"
-                                  style={{ background: `linear-gradient(135deg, ${s1} 50%, ${s2} 50%)` }}
-                                />
-                                <span style={{ fontSize: '0.95em' }}>{icon}</span>
-                                <span>{lbl}</span>
-                                {theme === t && <span style={{ marginLeft: 'auto', color: 'var(--color-primary)' }}>✓</span>}
-                              </button>
-                            );
-                          })}
-                        </React.Fragment>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
-
-            <h3 style={{ marginTop: 20 }}>Font</h3>
+            <h3>Font</h3>
             <div className="settings-theme-dropdown">
               <select
                 style={{

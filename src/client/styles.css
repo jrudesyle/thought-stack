@@ -414,6 +414,37 @@ input, select, textarea {
   gap: var(--spacing-xs);
 }
 
+/* ── Toolbar theme dropdown ─────────────────────────────────────── */
+.toolbar-theme-dropdown {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.toolbar-theme-trigger {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px !important;
+}
+
+.toolbar-theme-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(128,128,128,0.3);
+  flex-shrink: 0;
+}
+
+.toolbar-theme-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  left: auto;
+  width: 200px;
+  z-index: 500;
+}
+
 /* ═══════════════════════════════════════════════════════════════════
    MAIN CONTENT
    ═══════════════════════════════════════════════════════════════════ */
