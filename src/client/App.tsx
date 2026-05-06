@@ -92,7 +92,8 @@ export function App() {
       ['solarized',   '☀', 'Solarized',   '#073642,#268bd2'],
     ]},
     { label: 'Dev', items: [
-      ['vscode',      '🖊', 'VS Code',     '#1e1e1e,#007acc'],
+      ['vscode',       '🖊', 'VS Code Dark',  '#1e1e1e,#007acc'],
+      ['vscode-light', '🖊', 'VS Code Light', '#dddddd,#007acc'],
     ]},
   ];
 

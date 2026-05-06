@@ -3722,3 +3722,119 @@ select:focus-visible {
 [data-theme="vscode"] ::-webkit-scrollbar-track { background: #1e1e1e; }
 [data-theme="vscode"] ::-webkit-scrollbar-thumb { background: #424242; border-radius: 0; }
 [data-theme="vscode"] ::-webkit-scrollbar-thumb:hover { background: #555; }
+
+/* ── VS Code Light Theme ───────────────────────────────────────── */
+[data-theme="vscode-light"] {
+  --font-editor: 'Consolas', 'Courier New', ui-monospace, monospace;
+  --color-bg: #ffffff;
+  --color-surface: #f3f3f3;
+  --color-surface-raised: #ffffff;
+  --color-surface-sunken: #ebebeb;
+  --color-border: #d4d4d4;
+  --color-border-subtle: #e8e8e8;
+  --color-text: #1f1f1f;
+  --color-text-secondary: #3b3b3b;
+  --color-text-muted: #6e6e6e;
+  --color-primary: #007acc;
+  --color-primary-hover: #005f99;
+  --color-accent: #0070c1;
+  --color-hover: #e8e8e8;
+  --color-selection: rgba(173, 214, 255, 0.6);
+  --color-active: #e4e6f1;
+  --color-sidebar-bg: #f3f3f3;
+  --color-sidebar-bg-flat: #f3f3f3;
+  --color-sidebar-text: #1f1f1f;
+  --color-sidebar-text-secondary: #3b3b3b;
+  --color-sidebar-active: rgba(0, 122, 204, 0.1);
+  --color-sidebar-active-text: #007acc;
+  --color-sidebar-hover: rgba(0,0,0,0.04);
+  --color-toolbar-bg: rgba(221,221,221,0.95);
+  --color-toolbar-border: #c8c8c8;
+  --color-statusbar-bg: #007acc;
+  --color-statusbar-text: #ffffff;
+  --color-note-selected: rgba(0, 122, 204, 0.08);
+  --color-note-selected-border: #007acc;
+  --color-note-hover: rgba(0,0,0,0.03);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.1);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.12);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.14);
+  --shadow-xl: 0 16px 48px rgba(0,0,0,0.18);
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+  --font-size-sm: 0.8125rem;
+  --font-size-base: 0.875rem;
+  --font-size-lg: 0.9375rem;
+}
+
+[data-theme="vscode-light"] .sidebar {
+  border-right: 1px solid #d4d4d4;
+  background: #f3f3f3;
+}
+
+[data-theme="vscode-light"] .sidebar-section-header,
+[data-theme="vscode-light"] .sidebar-group-label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #3b3b3b;
+  padding: 4px 8px 2px;
+}
+
+[data-theme="vscode-light"] .toolbar {
+  background: #dddddd;
+  border-bottom: 1px solid #c8c8c8;
+}
+
+[data-theme="vscode-light"] .note-list {
+  background: #f3f3f3;
+}
+
+[data-theme="vscode-light"] .note-list-item {
+  border-radius: 0;
+  padding: 4px 12px;
+}
+
+[data-theme="vscode-light"] .note-list-item:hover {
+  background: #e8e8e8;
+}
+
+[data-theme="vscode-light"] .note-list-item.selected {
+  background: #cce5ff;
+  color: #000;
+}
+
+[data-theme="vscode-light"] .editor-pane,
+[data-theme="vscode-light"] .note-editor-wrapper {
+  background: #ffffff;
+}
+
+[data-theme="vscode-light"] code,
+[data-theme="vscode-light"] pre {
+  color: #a31515;
+  background: #f5f5f5;
+}
+
+[data-theme="vscode-light"] .ProseMirror blockquote {
+  border-left: 3px solid #007acc;
+  background: #e8f4fd;
+  color: #0451a5;
+  padding: 8px 16px;
+  border-radius: 0;
+}
+
+[data-theme="vscode-light"] .ProseMirror h1 { color: #0000ff; }
+[data-theme="vscode-light"] .ProseMirror h2 { color: #267f99; }
+[data-theme="vscode-light"] .ProseMirror h3 { color: #795e26; }
+
+[data-theme="vscode-light"] .status-bar {
+  background: #007acc;
+  color: #fff;
+  border-top: none;
+}
+
+[data-theme="vscode-light"] ::-webkit-scrollbar { width: 10px; }
+[data-theme="vscode-light"] ::-webkit-scrollbar-track { background: #f3f3f3; }
+[data-theme="vscode-light"] ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 0; }
+[data-theme="vscode-light"] ::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
