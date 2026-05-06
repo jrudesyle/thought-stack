@@ -100,6 +100,8 @@ export function App() {
 
   useEffect(() => {
     loadThemePreference().then(applyTheme);
+    const storedFont = localStorage.getItem('font-preference') ?? 'system';
+    if (storedFont !== 'system') document.documentElement.setAttribute('data-font', storedFont);
   }, []);
 
   // ── Detect cloud sync conflicts when vault is ready ────────────

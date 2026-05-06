@@ -60,7 +60,7 @@ export function Sidebar({
   const [allTags, setAllTags] = useState<TagInfo[]>([]);
   const [expandedStacks, setExpandedStacks] = useState<Set<string>>(new Set());
   const [notebooksExpanded, setNotebooksExpanded] = useState(true);
-  const [tagsExpanded, setTagsExpanded] = useState(true);
+  const [tagsExpanded, setTagsExpanded] = useState(false);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [editingItem, setEditingItem] = useState<{ type: string; name: string; path?: string } | null>(null);
   const [dropTargetName, setDropTargetName] = useState<string | null>(null);
