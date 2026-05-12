@@ -506,7 +506,7 @@ export function NoteEditor({ notePath, onNoteSaved }: NoteEditorProps) {
         });
       }
     };
-  }, [editor, note, imagesApi]);
+  }, [editor, note]);
 
   // ── Render ─────────────────────────────────────────────────────
 
