@@ -14,6 +14,7 @@ const CACHE_DB_NAME: &str = "cache.db";
 #[serde(rename_all = "camelCase")]
 pub struct SearchResult {
     pub note_id: String,
+    pub path: String,
     pub title: String,
     pub snippet: String,
     pub notebook: String,
@@ -156,6 +157,7 @@ fn row_to_result(row: &rusqlite::Row) -> rusqlite::Result<SearchResult> {
 
     Ok(SearchResult {
         note_id: row.get(0)?,
+        path: row.get(2)?,
         title: row.get(1)?,
         snippet: row.get(6)?,
         notebook: row.get(3)?,

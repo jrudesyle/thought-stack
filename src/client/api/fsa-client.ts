@@ -865,6 +865,7 @@ export const search = {
 
         results.push({
           noteId: parsed.id || relPath,
+          path: relPath,
           title,
           snippet,
           notebook,

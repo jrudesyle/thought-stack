@@ -40,6 +40,7 @@ const isElectronMode = typeof window !== 'undefined' && typeof (window as any).e
  *
  * - Electron mode: uses vault:// protocol URLs
  * - HTTP mode: uses /api/vault-images/ prefix
+ * - FSA mode: keep as-is, handle via custom image rendering
  */
 function markdownToVaultUrls(markdown: string, notebook: string): string {
   if (isElectronMode) {
@@ -59,7 +60,7 @@ function markdownToVaultUrls(markdown: string, notebook: string): string {
 
 /**
  * Converts display URLs back to relative image paths for storage.
- * Handles both vault:// (Electron) and /api/vault-images/ (HTTP) formats.
+ * Handles vault:// (Electron), /api/vault-images/ (HTTP), and blob: (FSA) formats.
  */
 function vaultUrlsToMarkdown(markdown: string): string {
   // Handle vault:// protocol URLs (Electron mode)
@@ -72,6 +73,9 @@ function vaultUrlsToMarkdown(markdown: string): string {
     /!\[([^\]]*)\]\(\/api\/vault-images\/[^/]+\/\.images\/([^)]+)\)/g,
     (_match, alt, filename) => `![${alt}](.images/${filename})`
   );
+  // Handle blob: URLs (FSA mode) - need to extract filename from somewhere else
+  // For now, blob URLs are ephemeral and shouldn't be saved; images are already
+  // stored in .images/ folder, so we skip blob URL conversion
   return result;
 }
 
@@ -369,10 +373,10 @@ export function NoteEditor({ notePath, onNoteSaved }: NoteEditorProps) {
         setCurrentTags(fetched.tags || []);
 
         // Set editor content from Markdown, converting relative image paths
-        // to vault:// protocol URLs so the renderer can load them.
+        // to vault:// protocol URLs (or blob URLs in FSA mode) so the renderer can load them.
         if (editor) {
           const contentWithVaultUrls = fetched.content
-            ? markdownToVaultUrls(fetched.content, fetched.notebook)
+            ? await markdownToVaultUrls(fetched.content, fetched.notebook)
             : '';
           editor.commands.setContent(contentWithVaultUrls);
         }
@@ -434,6 +438,44 @@ export function NoteEditor({ notePath, onNoteSaved }: NoteEditorProps) {
   const insertTable = useCallback(() => {
     editor?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
   }, [editor]);
+
+  // ── PWA image fix: swap blob URLs into .images/ imgs after render ─
+  useEffect(() => {
+    const isFSA =
+      typeof window !== 'undefined' &&
+      (typeof (window as any).showDirectoryPicker === 'function' ||
+        typeof navigator.storage?.getDirectory === 'function');
+
+    if (!editor || !note || !isFSA) return;
+    const container = document.querySelector('.editor-panel .tiptap');
+    if (!container) return;
+
+    const images = Array.from(container.querySelectorAll('img'));
+    images.forEach(async (img) => {
+      const src = img.getAttribute('src');
+      if (src && src.startsWith('.images/')) {
+        try {
+          const filename = src.replace('.images/', '');
+          const blob = await imagesApi.read(note.notebook, filename);
+          const blobUrl = URL.createObjectURL(blob);
+          img.src = blobUrl;
+          img.addEventListener('load', () => {
+            img.dataset.prevBlobUrl = blobUrl;
+          }, { once: true });
+        } catch (err) {
+          console.error('Failed to load image from FSA:', filename, err);
+        }
+      }
+    });
+
+    return () => {
+      images.forEach((img) => {
+        if (img.dataset.prevBlobUrl) {
+          URL.revokeObjectURL(img.dataset.prevBlobUrl);
+        }
+      });
+    };
+  }, [editor, note]);
 
   // ── Render ─────────────────────────────────────────────────────
 
