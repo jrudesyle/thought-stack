@@ -272,10 +272,9 @@ export function NoteEditor({ notePath, onNoteSaved }: NoteEditorProps) {
                       typeof navigator.storage?.getDirectory === 'function');
         
         if (isFSA) {
-          // Create blob URL from the file we just pasted
-          const blob = new Blob([arrayBuffer], { type: file.type });
-          imageUrl = URL.createObjectURL(blob);
-          console.log(`[NoteEditor] Created blob URL for FSA mode: ${imageUrl}`);
+          // FSA mode: Insert the .images/ path directly
+          imageUrl = result.path;
+          console.log(`[NoteEditor] FSA mode - using path directly: ${imageUrl}`);
         } else {
           // HTTP mode - use server endpoint
           imageUrl = `/api/vault-images/${encodeURIComponent(note.notebook)}/${result.path}`;
