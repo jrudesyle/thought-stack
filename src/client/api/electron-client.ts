@@ -53,6 +53,7 @@ export interface TagInfo {
 
 export interface SearchResult {
   noteId: string;
+  path: string;
   title: string;
   snippet: string;
   notebook: string;

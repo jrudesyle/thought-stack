@@ -238,6 +238,7 @@ export function searchNotes(
   let sql = `
     SELECT
       ni.id        AS noteId,
+      ni.path      AS path,
       ni.title     AS title,
       ni.body_text AS body_text,
       ni.notebook  AS notebook,
@@ -265,6 +266,7 @@ export function searchNotes(
 
   const rows = db.prepare(sql).all(...params) as Array<{
     noteId: string;
+    path: string;
     title: string;
     body_text: string;
     notebook: string;
@@ -275,6 +277,7 @@ export function searchNotes(
 
   return rows.map((row) => ({
     noteId: row.noteId,
+    path: row.path,
     title: row.title,
     snippet: generateSnippet(row.body_text, query),
     notebook: row.notebook,

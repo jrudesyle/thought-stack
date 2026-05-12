@@ -262,7 +262,7 @@ export function App() {
     const noteResults: NoteSummary[] = results.map(r => ({
       id: r.noteId,
       title: r.title,
-      path: '', // Search results don't carry full path; NoteList handles display
+      path: r.path, // Use full path from search result
       notebook: r.notebook,
       tags: r.tags,
       created: r.modified,

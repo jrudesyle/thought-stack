@@ -91,7 +91,9 @@ export function NoteList({ context, selectedNotePath, onSelectNote, onCreateNote
 
   const fetchNotes = useCallback(async () => {
     if (context.type === 'search') {
-      setNotesList(context.results);
+      // Sort search results alphabetically too
+      const sorted = [...context.results].sort((a, b) => a.title.localeCompare(b.title));
+      setNotesList(sorted);
       return;
     }
 
@@ -115,6 +117,8 @@ export function NoteList({ context, selectedNotePath, onSelectNote, onCreateNote
         default:
           result = [];
       }
+      // Sort alphabetically by title
+      result.sort((a, b) => a.title.localeCompare(b.title));
       setNotesList(result);
     } catch (err) {
       console.error('Failed to fetch notes:', err);
