@@ -23,14 +23,24 @@ export async function getBuildInfo(): Promise<BuildInfo> {
     return buildInfo!;
   } catch (err) {
     console.warn('Failed to load build info:', err);
-    return { buildNumber: 0, version: '1.0.0', timestamp: '' };
+    // Dev mode fallback
+    return {
+      buildNumber: 0,
+      version: '1.0.0-dev',
+      timestamp: new Date().toISOString()
+    };
   }
 }
 
 /**
  * Format build info as a display string.
- * Example: "v1.0.0 (build 42)"
+ * Example: "v1.0.0 #42 · May 12, 2026"
  */
 export function formatBuildInfo(info: BuildInfo): string {
-  return `v${info.version} (build ${info.buildNumber})`;
+  const date = info.timestamp ? new Date(info.timestamp).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  }) : '';
+  return `v${info.version} #${info.buildNumber}${date ? ' · ' + date : ''}`;
 }

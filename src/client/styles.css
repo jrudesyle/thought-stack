@@ -2321,9 +2321,10 @@ input, select, textarea {
 
 .status-bar-build {
   margin-left: auto;
-  opacity: 0.6;
-  font-size: 0.575rem;
+  opacity: 0.75;
+  font-size: 0.6rem;
   font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
