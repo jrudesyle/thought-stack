@@ -9,3 +9,5 @@ data/*.db-wal
 .kiro/
 release/
 src-tauri/target/
+build-info.json
+src/client/public/build-info.json

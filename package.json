@@ -14,9 +14,11 @@
   "scripts": {
     "dev": "npm run dev -w src/client",
     "server:dev": "tsx src/server/index.ts",
+    "prebuild": "node scripts/increment-build.js",
     "build": "npm run build -w src/client && npm run build:electron",
     "build:electron": "tsc -p electron/tsconfig.json && echo '{\"type\":\"commonjs\"}' > dist/electron/package.json",
     "electron:dev": "npm run build:electron && electron dist/electron/main.js",
+    "preelectron:build": "node scripts/increment-build.js",
     "electron:build": "npm run build -w src/client && npm run build:electron && electron-builder --config electron-builder.yml",
     "electron:preview": "npm run build -w src/client && npm run build:electron && electron dist/electron/main.js",
     "test": "vitest run",

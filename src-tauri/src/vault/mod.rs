@@ -1,4 +1,5 @@
 pub mod conflicts;
+pub mod ignore;
 pub mod images;
 pub mod markdown;
 pub mod notebooks;

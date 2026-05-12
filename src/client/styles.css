@@ -346,6 +346,7 @@ input, select, textarea {
   flex-direction: column;
   height: 100%;
   overflow: hidden;
+  padding-top: env(safe-area-inset-top, 0px);
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -1880,6 +1881,23 @@ input, select, textarea {
   font-size: var(--font-size-xs);
 }
 
+.settings-vault-chooser {
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-vault-option {
+  width: 100%;
+  text-align: left;
+  padding: 12px 16px;
+  line-height: 1.4;
+}
+
+.settings-vault-option--active {
+  border-color: var(--color-accent, #6366f1);
+  color: var(--color-accent, #6366f1);
+}
+
 /* ── Settings Buttons ──────────────────────────────────────────── */
 
 .settings-btn {
@@ -2301,6 +2319,13 @@ input, select, textarea {
   white-space: nowrap;
 }
 
+.status-bar-build {
+  margin-left: auto;
+  opacity: 0.6;
+  font-size: 0.575rem;
+  font-variant-numeric: tabular-nums;
+}
+
 /* ═══════════════════════════════════════════════════════════════════
    OFFLINE INDICATOR
    ═══════════════════════════════════════════════════════════════════ */
@@ -2410,7 +2435,7 @@ select:focus-visible {
   .app-layout {
     display: flex;
     flex-direction: column;
-    height: 100dvh;
+    height: 100%;
     overflow: hidden;
   }
 

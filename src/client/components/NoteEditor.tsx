@@ -229,12 +229,21 @@ export function NoteEditor({ notePath, onNoteSaved }: NoteEditorProps) {
   // ── Image handling ─────────────────────────────────────────────
 
   const insertImageFromFile = useCallback(async (file: File) => {
-    if (!note || !editor) return;
+    if (!note || !editor) {
+      console.warn('[NoteEditor] Cannot insert image: no note or editor available');
+      return;
+    }
+
+    console.log(`[NoteEditor] Inserting image: ${file.name} (${file.type}, ${file.size} bytes)`);
 
     try {
-      // Read file as ArrayBuffer and save via Electron IPC
+      // Read file as ArrayBuffer and save via storage API
       const arrayBuffer = await file.arrayBuffer();
+      console.log('[NoteEditor] Image data loaded, calling imagesApi.save...');
+      
       const result = await imagesApi.save(note.notebook, arrayBuffer, file.type);
+      console.log(`[NoteEditor] Image saved successfully: ${result.path}`);
+      
       // Insert using the appropriate URL scheme for the current mode.
       // result.path is like ".images/abc123.png"
       let imageUrl: string;
@@ -243,14 +252,23 @@ export function NoteEditor({ notePath, onNoteSaved }: NoteEditorProps) {
       } else {
         imageUrl = `/api/vault-images/${encodeURIComponent(note.notebook)}/${result.path}`;
       }
+      
+      console.log(`[NoteEditor] Inserting image into editor: ${imageUrl}`);
       editor.chain().focus().setImage({ src: imageUrl }).run();
+      console.log('[NoteEditor] Image inserted successfully');
     } catch (err) {
-      console.error('Failed to save image:', err);
+      console.error('[NoteEditor] Failed to save image:', err);
+      console.log('[NoteEditor] Falling back to base64 embedding');
+      
       // Fallback: embed as base64
       const reader = new FileReader();
       reader.onload = () => {
         const dataUrl = reader.result as string;
         editor?.chain().focus().setImage({ src: dataUrl }).run();
+        console.log('[NoteEditor] Base64 image embedded');
+      };
+      reader.onerror = () => {
+        console.error('[NoteEditor] FileReader error:', reader.error);
       };
       reader.readAsDataURL(file);
     }

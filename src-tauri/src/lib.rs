@@ -210,19 +210,94 @@ fn system_get_vault_path(state: State<AppState>) -> String {
 }
 
 #[tauri::command]
-fn system_set_vault_path(state: State<AppState>, path: String) -> Result<serde_json::Value, String> {
-    *state.vault_path.lock().unwrap() = path;
+fn system_set_vault_path(
+    app: tauri::AppHandle,
+    state: State<AppState>,
+    path: String,
+) -> Result<serde_json::Value, String> {
+    *state.vault_path.lock().unwrap() = path.clone();
+
+    // On Android, persist the vault path so it survives app restarts.
+    #[cfg(target_os = "android")]
+    {
+        use tauri::Manager;
+        if let Ok(data_dir) = app.path().app_data_dir() {
+            let config_file = data_dir.join("vault_path.txt");
+            let _ = std::fs::write(&config_file, &path);
+            log::info!("Persisted vault path to {:?}", config_file);
+        }
+    }
+    #[cfg(not(target_os = "android"))]
+    let _ = app; // suppress unused warning on desktop
+
     Ok(serde_json::json!({ "success": true }))
+}
+
+/// Returns the available vault storage locations.
+/// On Android: both internal (private) and external (visible in Files app) paths.
+/// On desktop: returns empty (desktop uses the folder picker dialog).
+#[derive(serde::Serialize)]
+struct VaultOptions {
+    internal: String,
+    external: Option<String>,
+}
+
+#[tauri::command]
+fn system_get_vault_options(app: tauri::AppHandle) -> Result<VaultOptions, String> {
+    #[cfg(target_os = "android")]
+    {
+        use tauri::Manager;
+        let data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+        let internal = data_dir.join("ThoughtStack").to_string_lossy().to_string();
+
+        // External path is always at this predictable location — no permissions needed.
+        // MainActivity.kt calls getExternalFilesDir() at startup to ensure the
+        // parent directory chain is created by Android before we use it.
+        let external = "/sdcard/Android/data/com.thoughtstack.app/files/ThoughtStack".to_string();
+        let _ = std::fs::create_dir_all(&external);
+        log::info!("vault options — internal: {:?}, external: {:?}", internal, external);
+
+        return Ok(VaultOptions { internal, external: Some(external) });
+    }
+
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = app;
+        Ok(VaultOptions { internal: String::new(), external: None })
+    }
 }
 
 #[tauri::command]
 async fn system_pick_vault_folder(app: tauri::AppHandle) -> Result<Option<String>, String> {
-    use tauri_plugin_dialog::DialogExt;
-    let folder = app
-        .dialog()
-        .file()
-        .blocking_pick_folder();
-    Ok(folder.map(|p| p.to_string()))
+    // Android doesn't support folder picker dialogs — use app data dir instead.
+    #[cfg(target_os = "android")]
+    {
+        use tauri::Manager;
+        let data_dir = app.path().app_data_dir().map_err(|e| {
+            log::error!("app_data_dir failed: {e}");
+            e.to_string()
+        })?;
+        let vault = data_dir.join("ThoughtStack");
+        log::info!("Android vault path: {:?}", vault);
+        std::fs::create_dir_all(&vault).map_err(|e| {
+            log::error!("create_dir_all failed: {e}");
+            e.to_string()
+        })?;
+        // Persist immediately so the path survives restarts.
+        let vault_str = vault.to_string_lossy().to_string();
+        let config_file = data_dir.join("vault_path.txt");
+        let _ = std::fs::write(&config_file, &vault_str);
+        log::info!("Persisted vault path: {:?}", vault_str);
+        return Ok(Some(vault_str));
+    }
+
+    // Desktop: show native folder picker.
+    #[cfg(not(target_os = "android"))]
+    {
+        use tauri_plugin_dialog::DialogExt;
+        let folder = app.dialog().file().blocking_pick_folder();
+        Ok(folder.map(|p| p.to_string()))
+    }
 }
 
 #[tauri::command]
@@ -266,14 +341,49 @@ fn conflicts_detect(state: State<AppState>) -> Result<Vec<conflicts::ConflictFil
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    #[cfg(target_os = "android")]
+    android_logger::init_once(
+        android_logger::Config::default()
+            .with_max_level(log::LevelFilter::Debug)
+            .with_tag("thoughtstack"),
+    );
+
+    log::info!("thoughtstack run() starting");
+
+    // On Android the vault lives in the app data dir; resolved at runtime via system_pick_vault_folder.
+    // On desktop, default to ~/ThoughtStack so first launch works without a picker.
+    #[cfg(target_os = "android")]
+    let default_vault = String::new(); // Will be set by the JS side on first launch
+
+    #[cfg(not(target_os = "android"))]
     let default_vault = dirs::home_dir()
         .map(|h| h.join("ThoughtStack").to_string_lossy().to_string())
         .unwrap_or_else(|| "~/ThoughtStack".to_string());
+
+    log::info!("default_vault = {:?}", default_vault);
 
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(AppState {
             vault_path: Mutex::new(default_vault),
+        })
+        .setup(|app| {
+            // On Android, load persisted vault path from disk if available.
+            #[cfg(target_os = "android")]
+            {
+                use tauri::Manager;
+                if let Ok(data_dir) = app.path().app_data_dir() {
+                    let config_file = data_dir.join("vault_path.txt");
+                    if let Ok(saved_path) = std::fs::read_to_string(&config_file) {
+                        let saved_path = saved_path.trim().to_string();
+                        if !saved_path.is_empty() {
+                            log::info!("Loaded persisted vault path: {:?}", saved_path);
+                            *app.state::<AppState>().vault_path.lock().unwrap() = saved_path;
+                        }
+                    }
+                }
+            }
+            Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             notes_list,
@@ -299,11 +409,15 @@ pub fn run() {
             system_get_vault_path,
             system_set_vault_path,
             system_pick_vault_folder,
+            system_get_vault_options,
             system_get_settings,
             system_update_settings,
             images_save,
             conflicts_detect,
         ])
         .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .unwrap_or_else(|e| {
+            log::error!("tauri run() failed: {e:?}");
+            panic!("error while running tauri application: {e:?}");
+        });
 }

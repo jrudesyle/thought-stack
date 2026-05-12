@@ -1,4 +1,5 @@
 use crate::vault::{
+    ignore::{is_ignored, read_ignore_patterns},
     markdown::{parse_frontmatter, serialize_note},
     resolve_vault_path,
     sanitize::{resolve_filename_conflict, sanitize_filename, title_from_filename},
@@ -286,6 +287,7 @@ pub fn list_notes(
     trash: bool,
 ) -> Result<Vec<NoteSummary>, String> {
     let resolved = resolve_vault_path(vault_path);
+    let ignore_patterns = read_ignore_patterns(&resolved);
 
     let search_root = if trash {
         resolved.join(".trash")
@@ -303,12 +305,22 @@ pub fn list_notes(
         .follow_links(false)
         .into_iter()
         .filter_entry(|e| {
+            let name = e.file_name().to_str().unwrap_or("");
             if trash {
-                true
-            } else {
-                let name = e.file_name().to_str().unwrap_or("");
-                !SKIP_DIRS.contains(&name)
+                return true;
             }
+            if SKIP_DIRS.contains(&name) {
+                return false;
+            }
+            if e.depth() > 0 && e.file_type().is_dir() {
+                if let Ok(rel) = e.path().strip_prefix(&resolved) {
+                    let rel_str = rel.to_string_lossy().replace('\\', "/");
+                    if is_ignored(&ignore_patterns, &rel_str) {
+                        return false;
+                    }
+                }
+            }
+            true
         })
     {
         let entry = match entry {
@@ -452,6 +464,7 @@ pub struct TagInfo {
 /// Lists all unique tags across the vault with note counts.
 pub fn list_tags(vault_path: &str) -> Result<Vec<TagInfo>, String> {
     let resolved = resolve_vault_path(vault_path);
+    let ignore_patterns = read_ignore_patterns(&resolved);
     let mut counts: HashMap<String, usize> = HashMap::new();
 
     for entry in walkdir::WalkDir::new(&resolved)
@@ -459,7 +472,18 @@ pub fn list_tags(vault_path: &str) -> Result<Vec<TagInfo>, String> {
         .into_iter()
         .filter_entry(|e| {
             let name = e.file_name().to_str().unwrap_or("");
-            !SKIP_DIRS.contains(&name)
+            if SKIP_DIRS.contains(&name) {
+                return false;
+            }
+            if e.depth() > 0 && e.file_type().is_dir() {
+                if let Ok(rel) = e.path().strip_prefix(&resolved) {
+                    let rel_str = rel.to_string_lossy().replace('\\', "/");
+                    if is_ignored(&ignore_patterns, &rel_str) {
+                        return false;
+                    }
+                }
+            }
+            true
         })
     {
         let entry = match entry {
@@ -496,6 +520,7 @@ pub fn rename_tag(
     new_name: &str,
 ) -> Result<usize, String> {
     let resolved = resolve_vault_path(vault_path);
+    let ignore_patterns = read_ignore_patterns(&resolved);
     let mut updated = 0usize;
 
     let entries: Vec<PathBuf> = walkdir::WalkDir::new(&resolved)
@@ -503,7 +528,18 @@ pub fn rename_tag(
         .into_iter()
         .filter_entry(|e| {
             let name = e.file_name().to_str().unwrap_or("");
-            !SKIP_DIRS.contains(&name)
+            if SKIP_DIRS.contains(&name) {
+                return false;
+            }
+            if e.depth() > 0 && e.file_type().is_dir() {
+                if let Ok(rel) = e.path().strip_prefix(&resolved) {
+                    let rel_str = rel.to_string_lossy().replace('\\', "/");
+                    if is_ignored(&ignore_patterns, &rel_str) {
+                        return false;
+                    }
+                }
+            }
+            true
         })
         .filter_map(|e| e.ok())
         .filter(|e| {

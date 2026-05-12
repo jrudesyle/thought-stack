@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { system } from '../api';
 import type { MigrationSummary } from '../api';
 
@@ -15,6 +15,36 @@ export function VaultPicker({ onVaultReady }: VaultPickerProps) {
   const [loading, setLoading] = useState(false);
   const [migrating, setMigrating] = useState(false);
   const [migrationResult, setMigrationResult] = useState<MigrationSummary | null>(null);
+
+  const [customPath, setCustomPath] = useState('');
+  const [vaultOptions, setVaultOptions] = useState<{ internal: string; external: string | null } | null>(null);
+
+  const isTauri = typeof window !== 'undefined' && typeof (window as any).__TAURI_INTERNALS__ !== 'undefined';
+  const isAndroid = isTauri && /android/i.test(navigator.userAgent);
+
+  // Load vault options on Android
+  useEffect(() => {
+    if (!isAndroid) return;
+    system.getVaultOptions().then(setVaultOptions).catch(() => {});
+  }, [isAndroid]);
+
+  const handleUseCustomPath = useCallback(async (path: string) => {
+    if (!path.trim()) return;
+    setError(null);
+    setLoading(true);
+    try {
+      const result = await system.setVaultPath(path.trim());
+      if (result.success) {
+        onVaultReady();
+      } else {
+        setError('Could not use that path. Check it exists and the app has permission.');
+      }
+    } catch (err) {
+      setError('Something went wrong. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, [onVaultReady]);
 
   const handlePickVault = useCallback(async () => {
     setError(null);
@@ -78,6 +108,95 @@ export function VaultPicker({ onVaultReady }: VaultPickerProps) {
     setMigrationResult(null);
     onVaultReady();
   }, [migrationResult, onVaultReady]);
+
+  if (isAndroid) {
+    const suggestions = [
+      '/sdcard/ThoughtStack',
+      ...(vaultOptions
+        ? [vaultOptions.external, vaultOptions.internal].filter(Boolean) as string[]
+        : []),
+    ];
+
+    return (
+      <div className="vault-picker-overlay">
+        <div className="vault-picker-panel">
+          <div className="vault-picker-logo">📝</div>
+          <h1 className="vault-picker-title">ThoughtStack</h1>
+          <p className="vault-picker-subtitle">Enter the full path to your vault folder.</p>
+
+          {suggestions.length > 0 && (
+            <div style={{ width: '100%', marginBottom: 16 }}>
+              <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', marginBottom: 8 }}>
+                Recommended paths (tap to use):
+              </p>
+              {suggestions.map(s => (
+                <button
+                  key={s}
+                  onClick={() => handleUseCustomPath(s)}
+                  disabled={loading}
+                  style={{
+                    display: 'block',
+                    width: '100%',
+                    textAlign: 'left',
+                    padding: '12px',
+                    marginBottom: 8,
+                    fontSize: '0.85rem',
+                    background: 'var(--color-bg-secondary)',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: 8,
+                    color: 'var(--color-text)',
+                    cursor: 'pointer',
+                    fontFamily: 'monospace',
+                  }}
+                >
+                  {s === vaultOptions?.external && '📂 '}
+                  {s === vaultOptions?.internal && '📱 '}
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div style={{ width: '100%', marginBottom: 12 }}>
+            <input
+              type="text"
+              value={customPath}
+              onChange={e => setCustomPath(e.target.value)}
+              placeholder="Or type a custom path"
+              style={{
+                width: '100%',
+                padding: '12px',
+                fontSize: '0.95rem',
+                borderRadius: 8,
+                border: '1px solid var(--color-border)',
+                background: 'var(--color-bg-secondary)',
+                color: 'var(--color-text)',
+                boxSizing: 'border-box',
+              }}
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+            />
+          </div>
+
+          <button
+            className="vault-picker-btn vault-picker-btn--primary"
+            onClick={() => handleUseCustomPath(customPath)}
+            disabled={loading || !customPath.trim()}
+            style={{ width: '100%' }}
+          >
+            {loading ? 'Setting up…' : '✓ Use This Path'}
+          </button>
+
+          {error && <div className="vault-picker-error">{error}</div>}
+
+          <p className="vault-picker-hint" style={{ fontSize: '0.75rem', marginTop: 12 }}>
+            Files app-accessible paths require special permission. Use recommended paths for best reliability.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="vault-picker-overlay">

@@ -7,6 +7,7 @@ import { SettingsPanel, applyTheme, loadThemePreference, saveThemePreference, ty
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { VaultPicker } from './components/VaultPicker';
 import { DebugOverlay, debugLog } from './components/DebugOverlay';
+import { getBuildInfo, formatBuildInfo } from './build-info';
 import {
   notebooks as notebooksApi,
   notes as notesApi,
@@ -56,9 +57,9 @@ export function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [conflictFiles, setConflictFiles] = useState<ConflictFile[]>([]);
   const [conflictBannerDismissed, setConflictBannerDismissed] = useState(false);
-  const [debugMode, setDebugMode] = useState(() => {
-    try { return localStorage.getItem('debug-overlay') === 'true'; } catch { return false; }
-  });
+  // Always on for now — helps diagnose Android crashes
+  const [debugMode, setDebugMode] = useState(false);
+  const [buildInfo, setBuildInfo] = useState<string>('');
 
   // Theme state (owned here so dropdown lives in toolbar)
   const [theme, setTheme] = useState<ThemePreference>('system');
@@ -99,6 +100,13 @@ export function App() {
 
   // ── Check vault on mount ───────────────────────────────────────
 
+  // Load build info on mount
+  useEffect(() => {
+    getBuildInfo().then(info => {
+      setBuildInfo(formatBuildInfo(info));
+    });
+  }, []);
+
   useEffect(() => {
     (async () => {
       try {
@@ -106,24 +114,26 @@ export function App() {
         const isTauri = typeof window !== 'undefined' && typeof (window as any).__TAURI_INTERNALS__ !== 'undefined';
         const isElectron = typeof window !== 'undefined' && typeof (window as any).electronAPI !== 'undefined';
 
+        debugLog(`env: tauri=${isTauri} electron=${isElectron} fsa=${isFSA}`);
+
         if (isFSA && !isTauri && !isElectron) {
+          debugLog('mode: FSA/PWA');
           const ready = await isVaultReady();
           if (ready) {
             const path = await systemApi.getVaultPath();
+            debugLog(`vault ready: ${path}`);
             setVaultPath(path);
             setVaultReady(true);
           } else {
-            // Check if there's a stored handle that just needs permission re-grant
             const stored = await hasStoredVault();
+            debugLog(`stored handle: ${stored}`);
             if (stored) setNeedsUnlock(true);
-            // else: no vault at all → show VaultPicker
           }
           return;
         }
 
-        // OPFS mode: iOS Safari, Firefox — no directory picker but OPFS is available.
-        // Auto-initialise silently; user never needs to pick a folder.
         if (!isTauri && !isElectron && isOPFSAvailable()) {
+          debugLog('mode: OPFS');
           await initOPFS();
           setVaultPath('OPFS');
           setVaultReady(true);
@@ -131,13 +141,15 @@ export function App() {
         }
 
         // Tauri or Electron mode
+        debugLog(`mode: ${isTauri ? 'tauri' : 'electron'}`);
         const path = await systemApi.getVaultPath();
+        debugLog(`vault path: "${path}"`);
         if (path) { setVaultPath(path); setVaultReady(true); }
+        else { debugLog('no vault path — showing picker'); }
       } catch (err) {
         console.error('Failed to check vault path:', err);
         debugLog(`vault check error: ${(err as any)?.message ?? err}`);
-        const isElectron = typeof window !== 'undefined' && typeof (window as any).electronAPI !== 'undefined';
-        if (!isElectron) setVaultReady(true);
+        // Don't fake vaultReady on error — show VaultPicker so user can set it
       } finally {
         setVaultChecked(true);
       }
@@ -397,6 +409,11 @@ export function App() {
     if (isFSA || isElectron) {
       return <VaultPicker onVaultReady={handleVaultReady} />;
     }
+
+    const isTauri = typeof window !== 'undefined' && typeof (window as any).__TAURI_INTERNALS__ !== 'undefined';
+    if (isTauri) {
+      return <VaultPicker onVaultReady={handleVaultReady} />;
+    }
   }
 
   return (
@@ -555,6 +572,7 @@ export function App() {
       <footer className="status-bar">
         <span className="status-bar-item">{viewTitle()}</span>
         <OfflineIndicator />
+        {buildInfo && <span className="status-bar-item status-bar-build">{buildInfo}</span>}
       </footer>
 
       {/* Settings Panel */}
@@ -568,7 +586,7 @@ export function App() {
         }}
       />
 
-      {/* Debug Overlay */}
+      {/* Debug Overlay — only shown when explicitly enabled */}
       {debugMode && (
         <DebugOverlay
           vaultReady={vaultReady}

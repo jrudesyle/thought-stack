@@ -1,4 +1,4 @@
-use crate::vault::resolve_vault_path;
+use crate::vault::{resolve_vault_path, ignore::{is_ignored, read_ignore_patterns}, SKIP_DIRS};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
@@ -56,6 +56,7 @@ fn build_patterns() -> Vec<ConflictPattern> {
 pub fn detect_conflicts(vault_path: &str) -> Result<Vec<ConflictFile>, String> {
     let resolved = resolve_vault_path(vault_path);
     let patterns = build_patterns();
+    let ignore_patterns = read_ignore_patterns(&resolved);
     let mut conflicts = Vec::new();
 
     for entry in walkdir::WalkDir::new(&resolved)
@@ -63,7 +64,18 @@ pub fn detect_conflicts(vault_path: &str) -> Result<Vec<ConflictFile>, String> {
         .into_iter()
         .filter_entry(|e| {
             let name = e.file_name().to_str().unwrap_or("");
-            !crate::vault::SKIP_DIRS.contains(&name)
+            if SKIP_DIRS.contains(&name) {
+                return false;
+            }
+            if e.depth() > 0 && e.file_type().is_dir() {
+                if let Ok(rel) = e.path().strip_prefix(&resolved) {
+                    let rel_str = rel.to_string_lossy().replace('\\', "/");
+                    if is_ignored(&ignore_patterns, &rel_str) {
+                        return false;
+                    }
+                }
+            }
+            true
         })
     {
         let entry = match entry {

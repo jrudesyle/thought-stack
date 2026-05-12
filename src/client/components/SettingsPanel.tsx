@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { system, type AppSettings } from '../api';
 import { loadAIConfig, saveAIConfig, clearAIConfig, type AIProvider } from '../api/ai-client';
+import { debugLog } from './DebugOverlay';
 
 // ── Theme helpers ──────────────────────────────────────────────────
 
@@ -67,6 +68,9 @@ interface SettingsPanelProps {
 export function SettingsPanel({ open, onClose, debugMode = false, onToggleDebug }: SettingsPanelProps) {
   const [font, setFont] = useState<string>('system');
   const [vaultPath, setVaultPath] = useState<string>('');
+  const [vaultOptions, setVaultOptions] = useState<{ internal: string; external: string | null } | null>(null);
+  const [showVaultChooser, setShowVaultChooser] = useState(false);
+  const [customPath, setCustomPath] = useState<string>('');
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   // AI settings
@@ -94,13 +98,19 @@ export function SettingsPanel({ open, onClose, debugMode = false, onToggleDebug 
       setAiKeySaved(true);
     }
 
-    // Load vault path
+    // Load vault path and options
     (async () => {
       try {
         const path = await system.getVaultPath();
         setVaultPath(path);
       } catch {
         setVaultPath('');
+      }
+      try {
+        const opts = await system.getVaultOptions();
+        if (opts.internal || opts.external) setVaultOptions(opts);
+      } catch {
+        // desktop — no vault options, use picker instead
       }
     })();
   }, [open]);
@@ -180,20 +190,49 @@ export function SettingsPanel({ open, onClose, debugMode = false, onToggleDebug 
   // ── Vault path change ────────────────────────────────────────────
 
   const handleChangeVault = useCallback(async () => {
+    // On Android, vaultOptions will be set — show in-app chooser instead of OS picker.
+    if (vaultOptions) {
+      setShowVaultChooser(true);
+      return;
+    }
+    // Desktop: use OS folder picker.
     try {
       setStatusMessage(null);
+      debugLog('changeVault: calling pickVaultFolder');
       const path = await system.pickVaultFolder();
-      if (!path) return; // User cancelled
+      debugLog(`changeVault: path=${JSON.stringify(path)}`);
+      if (!path) {
+        debugLog('changeVault: path empty/null, returning');
+        return;
+      }
 
+      debugLog('changeVault: calling setVaultPath');
       const result = await system.setVaultPath(path);
+      debugLog(`changeVault: result=${JSON.stringify(result)}`);
       if (result.success) {
         setVaultPath(path);
         setStatusMessage({ text: 'Vault changed. Reload the app to apply.', type: 'success' });
       } else {
         setStatusMessage({ text: 'Failed to set vault path.', type: 'error' });
       }
-    } catch {
+    } catch (err) {
+      debugLog(`changeVault ERROR: ${(err as any)?.message ?? err}`);
       setStatusMessage({ text: 'Failed to change vault.', type: 'error' });
+    }
+  }, [vaultOptions]);
+
+  const handleSelectVaultLocation = useCallback(async (path: string) => {
+    setShowVaultChooser(false);
+    try {
+      const result = await system.setVaultPath(path);
+      if (result.success) {
+        // Reload so the app reinitializes with the new vault path.
+        window.location.reload();
+      } else {
+        setStatusMessage({ text: 'Failed to set vault path.', type: 'error' });
+      }
+    } catch (err) {
+      setStatusMessage({ text: 'Failed to set vault path.', type: 'error' });
     }
   }, []);
 
@@ -278,14 +317,88 @@ export function SettingsPanel({ open, onClose, debugMode = false, onToggleDebug 
           {/* Vault Section */}
           <div className="settings-section">
             <h3>Vault</h3>
-            <div className="settings-vault-info">
-              <span className="settings-vault-path" title={vaultPath}>
-                {vaultPath || 'No vault configured'}
-              </span>
-              <button className="settings-btn" onClick={handleChangeVault}>
-                Change Vault
-              </button>
-            </div>
+            {showVaultChooser && vaultOptions ? (
+              <div className="settings-vault-chooser">
+                <p style={{ fontSize: 'var(--font-size-sm)', marginBottom: 8, opacity: 0.7 }}>
+                  Choose where to store your notes:
+                </p>
+                <button
+                  className={`settings-btn settings-vault-option${vaultPath === vaultOptions.internal ? ' settings-vault-option--active' : ''}`}
+                  onClick={() => handleSelectVaultLocation(vaultOptions.internal)}
+                >
+                  <strong>Internal Storage</strong>
+                  <span style={{ fontSize: '11px', opacity: 0.6, display: 'block', marginTop: 2 }}>
+                    Private — not visible in Files app
+                  </span>
+                </button>
+                {vaultOptions.external && (
+                  <button
+                    className={`settings-btn settings-vault-option${vaultPath === vaultOptions.external ? ' settings-vault-option--active' : ''}`}
+                    onClick={() => handleSelectVaultLocation(vaultOptions.external!)}
+                    style={{ marginTop: 8 }}
+                  >
+                    <strong>External Storage</strong>
+                    <span style={{ fontSize: '11px', opacity: 0.6, display: 'block', marginTop: 2 }}>
+                      Visible in Files app → Android/data/com.thoughtstack.app
+                    </span>
+                  </button>
+                )}
+
+                {/* Custom path for FolderSync / cloud sync */}
+                <div style={{ marginTop: 16, borderTop: '1px solid var(--color-border-subtle)', paddingTop: 12 }}>
+                  <p style={{ fontSize: 'var(--font-size-sm)', marginBottom: 6, fontWeight: 500 }}>
+                    Custom path
+                  </p>
+                  <p style={{ fontSize: '11px', opacity: 0.6, marginBottom: 8 }}>
+                    For FolderSync or cloud sync. Requires "All files access" permission:
+                    Settings → Apps → ThoughtStack → Permissions → Files
+                  </p>
+                  <input
+                    type="text"
+                    value={customPath}
+                    onChange={e => setCustomPath(e.target.value)}
+                    placeholder="/storage/emulated/0/ThoughtStack"
+                    style={{
+                      width: '100%',
+                      padding: '8px 10px',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--color-border-subtle)',
+                      background: 'var(--color-surface)',
+                      color: 'var(--color-text)',
+                      fontSize: 'var(--font-size-xs)',
+                      fontFamily: 'var(--font-mono)',
+                      boxSizing: 'border-box',
+                      marginBottom: 8,
+                    }}
+                  />
+                  <button
+                    className="settings-btn"
+                    disabled={!customPath.trim()}
+                    onClick={() => handleSelectVaultLocation(customPath.trim())}
+                    style={{ width: '100%' }}
+                  >
+                    Use This Path
+                  </button>
+                </div>
+
+                <button
+                  className="settings-btn"
+                  onClick={() => setShowVaultChooser(false)}
+                  style={{ marginTop: 12, opacity: 0.6 }}
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <div className="settings-vault-info">
+                <span className="settings-vault-path" title={vaultPath}>
+                  {vaultPath || 'No vault configured'}
+                </span>
+                <button className="settings-btn" onClick={handleChangeVault}>
+                  Change Vault
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Font Section */}

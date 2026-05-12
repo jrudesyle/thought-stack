@@ -1,4 +1,5 @@
 use crate::vault::{
+    ignore::{is_ignored, read_ignore_patterns},
     resolve_vault_path,
     sanitize::sanitize_filename,
     trash::soft_delete_dir,
@@ -152,6 +153,7 @@ pub fn move_notebook(
 /// for stacked notebooks). Directories in SKIP_DIRS are excluded.
 pub fn list_notebooks(vault_path: &str) -> Result<Vec<NotebookInfo>, String> {
     let resolved = resolve_vault_path(vault_path);
+    let ignore_patterns = read_ignore_patterns(&resolved);
     let mut notebooks = Vec::new();
 
     let entries = fs::read_dir(&resolved).map_err(|e| e.to_string())?;
@@ -168,6 +170,9 @@ pub fn list_notebooks(vault_path: &str) -> Result<Vec<NotebookInfo>, String> {
             .to_string();
 
         if SKIP_DIRS.contains(&name.as_str()) || name.starts_with('.') {
+            continue;
+        }
+        if is_ignored(&ignore_patterns, &name) {
             continue;
         }
 
@@ -202,6 +207,9 @@ pub fn list_notebooks(vault_path: &str) -> Result<Vec<NotebookInfo>, String> {
                 .unwrap_or("")
                 .to_string();
             let sub_rel = format!("{}/{}", name, sub_name);
+            if is_ignored(&ignore_patterns, &sub_rel) {
+                continue;
+            }
             let note_count = count_md_files(&sub_path);
             notebooks.push(NotebookInfo {
                 name: sub_name,

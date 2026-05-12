@@ -185,6 +185,10 @@ export const system = {
     return invoke('system_pick_vault_folder');
   },
 
+  getVaultOptions(): Promise<{ internal: string; external: string | null }> {
+    return invoke('system_get_vault_options');
+  },
+
   getSettings(): Promise<AppSettings> {
     return invoke('system_get_settings');
   },

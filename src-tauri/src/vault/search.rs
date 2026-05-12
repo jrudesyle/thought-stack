@@ -177,12 +177,24 @@ pub fn rebuild_index(vault_path: &str) -> Result<usize, String> {
     let resolved = resolve_vault_path(vault_path);
     let mut count = 0usize;
 
+    let ignore_patterns = crate::vault::ignore::read_ignore_patterns(&resolved);
     for entry in walkdir::WalkDir::new(&resolved)
         .follow_links(false)
         .into_iter()
         .filter_entry(|e| {
             let name = e.file_name().to_str().unwrap_or("");
-            !SKIP_DIRS.contains(&name)
+            if SKIP_DIRS.contains(&name) {
+                return false;
+            }
+            if e.depth() > 0 && e.file_type().is_dir() {
+                if let Ok(rel) = e.path().strip_prefix(&resolved) {
+                    let rel_str = rel.to_string_lossy().replace('\\', "/");
+                    if crate::vault::ignore::is_ignored(&ignore_patterns, &rel_str) {
+                        return false;
+                    }
+                }
+            }
+            true
         })
     {
         let entry = match entry {

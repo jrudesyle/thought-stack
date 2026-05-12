@@ -39,11 +39,16 @@ export function saveImage(
 ): string {
   const resolved = resolveVaultPath(vaultPath);
   const imagesDir = path.join(resolved, notebook, IMAGES_DIR);
+  
+  console.log(`[Electron images] Creating directory: ${imagesDir}`);
   fs.mkdirSync(imagesDir, { recursive: true });
 
   const filename = generateImageFilename(mimeType);
   const filePath = path.join(imagesDir, filename);
+  
+  console.log(`[Electron images] Writing image: ${filePath} (${imageData.length} bytes)`);
   fs.writeFileSync(filePath, imageData);
+  console.log(`[Electron images] Image saved successfully: ${filename}`);
 
   // Return relative path for Markdown reference
   return `${IMAGES_DIR}/${filename}`;

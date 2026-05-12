@@ -966,8 +966,18 @@ export const images = {
     const id = generateId().slice(0, 12);
     const filename = `${id}${ext}`;
     const relPath = `${notebook}/.images/${filename}`;
-    await writeBinaryFile(root, relPath, imageData);
-    return { path: `.images/${filename}` };
+    
+    console.log(`[FSA images] Saving image to: ${relPath}`);
+    console.log(`[FSA images] Size: ${imageData.byteLength} bytes, MIME: ${mimeType}`);
+    
+    try {
+      await writeBinaryFile(root, relPath, imageData);
+      console.log(`[FSA images] Image saved successfully: ${filename}`);
+      return { path: `.images/${filename}` };
+    } catch (err) {
+      console.error(`[FSA images] Failed to write image file:`, err);
+      throw err;
+    }
   },
 };
 
