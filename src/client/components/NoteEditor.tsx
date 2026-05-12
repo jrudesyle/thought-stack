@@ -489,12 +489,11 @@ export function NoteEditor({ notePath, onNoteSaved }: NoteEditorProps) {
     swapImages();
 
     // Also run on editor update (content changes)
-    const cleanup = editor.on('update', () => {
+    editor.on('update', () => {
       setTimeout(swapImages, 100);
     });
 
     return () => {
-      cleanup();
       // Cleanup any created blob URLs
       const container = document.querySelector('.editor-panel .tiptap');
       if (container) {
