@@ -56,7 +56,9 @@ export function App() {
   const [dataChangeKey, setDataChangeKey] = useState(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [conflictFiles, setConflictFiles] = useState<ConflictFile[]>([]);
-  const [conflictBannerDismissed, setConflictBannerDismissed] = useState(false);
+  const [conflictBannerDismissed, setConflictBannerDismissed] = useState(() => {
+    try { return localStorage.getItem('conflict-banner-dismissed') === 'true'; } catch { return false; }
+  });
   // Always on for now — helps diagnose Android crashes
   const [debugMode, setDebugMode] = useState(false);
   const [buildInfo, setBuildInfo] = useState<string>('');
@@ -506,7 +508,10 @@ export function App() {
           </span>
           <button
             className="conflict-banner-dismiss"
-            onClick={() => setConflictBannerDismissed(true)}
+            onClick={() => {
+              setConflictBannerDismissed(true);
+              try { localStorage.setItem('conflict-banner-dismissed', 'true'); } catch {}
+            }}
             aria-label="Dismiss conflict warning"
           >
             ✕
