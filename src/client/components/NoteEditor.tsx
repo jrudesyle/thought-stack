@@ -459,29 +459,33 @@ export function NoteEditor({ notePath, onNoteSaved }: NoteEditorProps) {
     if (!editor || !note || !isFSA) return;
 
     const swapImages = async () => {
-      const container = document.querySelector('.editor-panel .tiptap');
-      if (!container) return;
+      try {
+        const container = document.querySelector('.editor-panel .tiptap');
+        if (!container) return;
 
-      const images = Array.from(container.querySelectorAll('img'));
-      console.log(`[NoteEditor] FSA blob swapper found ${images.length} images`);
-      
-      for (const img of images) {
-        const src = img.getAttribute('src');
-        console.log(`[NoteEditor] Image src:`, src);
+        const images = Array.from(container.querySelectorAll('img'));
+        console.log(`[NoteEditor] FSA blob swapper found ${images.length} images`);
         
-        if (src && src.startsWith('.images/')) {
-          try {
-            const filename = src.replace('.images/', '');
-            console.log(`[NoteEditor] Loading FSA blob for: ${filename}`);
-            const blob = await imagesApi.read(note.notebook, filename);
-            const blobUrl = URL.createObjectURL(blob);
-            img.src = blobUrl;
-            img.dataset.prevBlobUrl = blobUrl;
-            console.log(`[NoteEditor] FSA blob swapped: ${filename} -> ${blobUrl}`);
-          } catch (err) {
-            console.error(`[NoteEditor] Failed to load FSA image ${filename}:`, err);
+        for (const img of images) {
+          const src = img.getAttribute('src');
+          console.log(`[NoteEditor] Image src:`, src);
+          
+          if (src && src.startsWith('.images/')) {
+            try {
+              const filename = src.replace('.images/', '');
+              console.log(`[NoteEditor] Loading FSA blob for: ${filename}`);
+              const blob = await imagesApi.read(note.notebook, filename);
+              const blobUrl = URL.createObjectURL(blob);
+              img.src = blobUrl;
+              img.dataset.prevBlobUrl = blobUrl;
+              console.log(`[NoteEditor] FSA blob swapped: ${filename} -> ${blobUrl}`);
+            } catch (err) {
+              console.error(`[NoteEditor] Failed to load FSA image ${filename}:`, err);
+            }
           }
         }
+      } catch (err) {
+        console.error('[NoteEditor] Blob swapper error:', err);
       }
     };
 
@@ -489,20 +493,26 @@ export function NoteEditor({ notePath, onNoteSaved }: NoteEditorProps) {
     swapImages();
 
     // Also run on editor update (content changes)
-    editor.on('update', () => {
-      setTimeout(swapImages, 100);
-    });
+    if (editor && editor.on) {
+      editor.on('update', () => {
+        setTimeout(() => swapImages().catch(console.error), 100);
+      });
+    }
 
     return () => {
       // Cleanup any created blob URLs
-      const container = document.querySelector('.editor-panel .tiptap');
-      if (container) {
-        const images = Array.from(container.querySelectorAll('img'));
-        images.forEach((img) => {
-          if (img.dataset.prevBlobUrl) {
-            URL.revokeObjectURL(img.dataset.prevBlobUrl);
-          }
-        });
+      try {
+        const container = document.querySelector('.editor-panel .tiptap');
+        if (container) {
+          const images = Array.from(container.querySelectorAll('img'));
+          images.forEach((img) => {
+            if (img.dataset.prevBlobUrl) {
+              URL.revokeObjectURL(img.dataset.prevBlobUrl);
+            }
+          });
+        }
+      } catch (err) {
+        console.error('[NoteEditor] Cleanup error:', err);
       }
     };
   }, [editor, note]);
