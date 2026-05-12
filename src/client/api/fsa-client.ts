@@ -979,6 +979,25 @@ export const images = {
       throw err;
     }
   },
+
+  async read(
+    notebook: string,
+    filename: string,
+  ): Promise<Blob> {
+    const root = await requireVault();
+    const relPath = `${notebook}/.images/${filename}`;
+    console.log(`[FSA images] Reading image: ${relPath}`);
+    
+    try {
+      const fh = await getFileHandle(root, relPath);
+      const file = await fh.getFile();
+      console.log(`[FSA images] Image read successfully: ${file.size} bytes`);
+      return file;
+    } catch (err) {
+      console.error(`[FSA images] Failed to read image:`, err);
+      throw err;
+    }
+  },
 };
 
 // ── Conflicts API ─────────────────────────────────────────────────────────

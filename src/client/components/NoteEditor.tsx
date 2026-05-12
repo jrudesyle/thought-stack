@@ -250,7 +250,21 @@ export function NoteEditor({ notePath, onNoteSaved }: NoteEditorProps) {
       if (isElectronMode) {
         imageUrl = `vault://${encodeURIComponent(note.notebook)}/${result.path}`;
       } else {
-        imageUrl = `/api/vault-images/${encodeURIComponent(note.notebook)}/${result.path}`;
+        // For FSA/PWA mode: create a blob URL from the saved file
+        // This allows the image to display without needing an HTTP server
+        const isFSA = typeof window !== 'undefined' && 
+                     (typeof (window as any).showDirectoryPicker === 'function' || 
+                      typeof navigator.storage?.getDirectory === 'function');
+        
+        if (isFSA) {
+          // Create blob URL from the file we just pasted
+          const blob = new Blob([arrayBuffer], { type: file.type });
+          imageUrl = URL.createObjectURL(blob);
+          console.log(`[NoteEditor] Created blob URL for FSA mode: ${imageUrl}`);
+        } else {
+          // HTTP mode - use server endpoint
+          imageUrl = `/api/vault-images/${encodeURIComponent(note.notebook)}/${result.path}`;
+        }
       }
       
       console.log(`[NoteEditor] Inserting image into editor: ${imageUrl}`);
