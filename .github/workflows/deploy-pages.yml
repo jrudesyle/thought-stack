@@ -34,7 +34,9 @@ jobs:
         run: npm ci
 
       - name: Build
-        run: npm run build -w src/client
+        run: |
+          node scripts/increment-build.js
+          npm run build -w src/client
         env:
           VITE_BASE_URL: ./
 
