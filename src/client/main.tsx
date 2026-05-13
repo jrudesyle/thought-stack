@@ -69,13 +69,31 @@ ReactDOM.createRoot(root).render(
   </ErrorBoundary>
 );
 
-// ── Service Worker Registration ────────────────────────────────────
+// ── Service Worker Registration + Update Detection ────────────────
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').then(
       (registration) => {
         console.log('Service worker registered:', registration.scope);
+
+        // Check for updates every 60 seconds
+        setInterval(() => {
+          registration.update();
+        }, 60000);
+
+        // Listen for new service worker waiting
+        registration.addEventListener('updatefound', () => {
+          const newWorker = registration.installing;
+          if (!newWorker) return;
+
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              // New version available
+              showUpdateToast();
+            }
+          });
+        });
       },
       (err) => {
         // Graceful failure — app continues without offline support
@@ -83,4 +101,47 @@ if ('serviceWorker' in navigator) {
       }
     );
   });
+}
+
+// ── Update Toast ───────────────────────────────────────────────────
+
+function showUpdateToast() {
+  const toast = document.createElement('div');
+  toast.style.cssText = `
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: #2e2a28;
+    color: #fff;
+    padding: 16px 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 14px;
+    z-index: 100000;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  `;
+
+  toast.innerHTML = `
+    <span>✨ New version available</span>
+    <button style="
+      background: #0077cc;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+    ">Refresh</button>
+  `;
+
+  const button = toast.querySelector('button');
+  button?.addEventListener('click', () => {
+    window.location.reload();
+  });
+
+  document.body.appendChild(toast);
 }
