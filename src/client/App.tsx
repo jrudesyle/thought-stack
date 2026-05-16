@@ -440,6 +440,7 @@ export function App() {
           <SearchBar
             onSearchResults={handleSearchResults}
             onClearSearch={handleClearSearch}
+            onSelectNote={handleSelectNote}
             isSearchActive={activeView === 'search'}
           />
         </div>

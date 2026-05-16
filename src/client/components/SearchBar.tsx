@@ -13,12 +13,13 @@ import {
 interface SearchBarProps {
   onSearchResults: (results: SearchResult[], query: string) => void;
   onClearSearch: () => void;
+  onSelectNote: (path: string) => void;
   isSearchActive: boolean;
 }
 
 // ── Component ──────────────────────────────────────────────────────
 
-export function SearchBar({ onSearchResults, onClearSearch, isSearchActive }: SearchBarProps) {
+export function SearchBar({ onSearchResults, onClearSearch, onSelectNote, isSearchActive }: SearchBarProps) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [showResults, setShowResults] = useState(false);
@@ -113,8 +114,9 @@ export function SearchBar({ onSearchResults, onClearSearch, isSearchActive }: Se
     if (isSearchActive) onClearSearch();
   };
 
-  const handleResultClick = (_result: SearchResult) => {
+  const handleResultClick = (result: SearchResult) => {
     onSearchResults(results, query);
+    onSelectNote(result.path);
     setShowResults(false);
   };
 
