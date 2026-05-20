@@ -54,7 +54,7 @@ jobs:
         run: npm ci
       - name: Build APK (Tauri Mobile — experimental)
         run: |
-          npm install -g @tauri-apps/tauri-cli
+          npm install -g @tauri-apps/cli
           tauri android build || true
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
