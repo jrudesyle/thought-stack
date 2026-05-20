@@ -23,6 +23,8 @@ jobs:
           toolchain: stable
           profile: minimal
           override: true
+      - name: Add Intel macOS target
+        run: rustup target add x86_64-apple-darwin
       - name: Install dependencies
         run: npm ci
       - name: Build DMG (Tauri)
