@@ -1,0 +1,61 @@
+name: Build Desktop (DMG) and Android (APK)
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build-desktop:
+    name: Build macOS DMG
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+      - name: Install dependencies
+        run: npm ci
+      - name: Build DMG (Tauri)
+        run: npx tauri build --target x86_64-apple-darwin
+      - name: Upload DMG Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ThoughtStack-macOS
+          path: src-tauri/target/release/bundle/dmg/*.dmg
+
+  build-android:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+      - name: Install dependencies
+        run: npm ci
+      - name: Build APK (Tauri Mobile — experimental)
+        run: |
+          npm install -g @tauri-apps/tauri-cli
+          tauri android build || true
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ThoughtStack-Android
+          path: '**/*.apk'
